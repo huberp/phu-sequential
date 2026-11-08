@@ -32,16 +32,16 @@
   <rect class="ctl" x="626" y="62" width="170" height="28"/><text class="t" x="636" y="81">Velocity: Delta ▾</text>
   <rect class="ctl" x="806" y="62" width="378" height="28" style="stroke:#4fc3f7"/><text class="t" x="816" y="81">1/8t, 1/8., 1/4, 1/16, 1/16, 1/8</text>
 
-  <!-- steps 6, widths ∝ 1/12, 3/16, 1/4, 1/16, 1/16, 1/8 of a whole; zero line at y=158 (bar area y=130..186) -->
-  <rect class="on" x="16" y="100" width="118" height="24"/><rect class="trk" x="16" y="130" width="118" height="56"/><rect class="bar" x="16" y="140" width="118" height="18"/><text class="t" x="22" y="154" style="fill:#0b1b24">+40</text>
-  <rect class="on" x="140" y="100" width="269" height="24"/><rect class="trk" x="140" y="130" width="269" height="56"/><rect class="neg" x="140" y="158" width="269" height="14"/><text class="t" x="146" y="182">−25</text>
-  <rect class="on" x="415" y="100" width="360" height="24"/><rect class="trk" x="415" y="130" width="360" height="56"/><rect class="bar" x="415" y="158" width="360" height="0"/><text class="t" x="421" y="154">0</text>
-  <rect class="off" x="781" y="100" width="88" height="24"/><rect class="trk" x="781" y="130" width="88" height="56"/>
-  <rect class="on" x="875" y="100" width="88" height="24"/><rect class="trk" x="875" y="130" width="88" height="56"/><rect class="bar" x="875" y="132" width="88" height="26"/><text class="t" x="881" y="146" style="fill:#0b1b24">+60</text>
-  <rect class="on" x="969" y="100" width="209" height="24"/><rect class="trk" x="969" y="130" width="209" height="56"/><rect class="neg" x="969" y="158" width="209" height="24"/><text class="t" x="975" y="178">−55</text>
+  <!-- steps 6, widths ∝ 1/8t=1/12, 1/8.=3/16, 1/4, 1/16, 1/16, 1/8 (whole notes); zero line at y=158 (bar area y=130..186) -->
+  <rect class="on" x="16" y="100" width="122" height="24"/><rect class="trk" x="16" y="130" width="122" height="56"/><rect class="bar" x="16" y="140" width="122" height="18"/><text class="t" x="22" y="154" style="fill:#0b1b24">+40</text>
+  <rect class="on" x="144" y="100" width="275" height="24"/><rect class="trk" x="144" y="130" width="275" height="56"/><rect class="neg" x="144" y="158" width="275" height="14"/><text class="t" x="150" y="182">−25</text>
+  <rect class="on" x="425" y="100" width="367" height="24"/><rect class="trk" x="425" y="130" width="367" height="56"/><rect class="bar" x="425" y="158" width="367" height="0"/><text class="t" x="431" y="154">0</text>
+  <rect class="off" x="798" y="100" width="92" height="24"/><rect class="trk" x="798" y="130" width="92" height="56"/>
+  <rect class="on" x="896" y="100" width="92" height="24"/><rect class="trk" x="896" y="130" width="92" height="56"/><rect class="bar" x="896" y="132" width="92" height="26"/><text class="t" x="902" y="146" style="fill:#0b1b24">+60</text>
+  <rect class="on" x="994" y="100" width="184" height="24"/><rect class="trk" x="994" y="130" width="184" height="56"/><rect class="neg" x="994" y="158" width="184" height="24"/><text class="t" x="1000" y="178">−55</text>
   <line class="zero" x1="16" y1="158" x2="1178" y2="158"/>
   <text class="dim" x="16" y="206">bars grow up/down from the zero line; delta is added to the incoming velocity and clamped to 0…127; no swing in text-grid mode</text>
 
-  <rect class="pos" x="413" y="98" width="364" height="90"/>
-  <polygon class="ptr" points="591,92 599,92 595,98"/>
+  <rect class="pos" x="423" y="98" width="371" height="90"/>
+  <polygon class="ptr" points="604,92 612,92 608,98"/>
 </svg>
