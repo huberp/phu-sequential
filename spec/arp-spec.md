@@ -92,7 +92,7 @@ Incoming velocity: the note receives the velocity of the input note at the step 
 
 ### 7.2 Clamping
 
-All calculated velocity values are clamped to 0 to 127. A note with a calculated velocity of 0 is not sent.
+All calculated velocity values are clamped to 0 to 127. A note with a calculated velocity of 0 is not sent: that step is silent, the step position still advances, and sounding voices of the lane are unaffected.
 
 ### 7.3 Sampling
 
@@ -192,4 +192,4 @@ Each lane starts with base timing 1/16, subdivision straight, swing 0, step coun
 
 ## 21. Bypass Behavior
 
-On host bypass, the plugin passes all input events through to the output unchanged. All lanes stop immediately; latch ends (Section 4.6). All sounding notes of the lanes immediately receive Note-Offs. When bypass ends, each lane takes over the position derived from the host playhead (Section 10). No reset to step 1 takes place.
+On host bypass, the plugin passes all input events through to the output unchanged. On entering bypass, all notes passed through so far (Section 3.3) and all sounding lane notes immediately receive Note-Offs, and the pass-through tracking is cleared; afterwards everything is passed raw. All lanes stop immediately; latch ends (Section 4.6). When bypass ends, each lane takes over the position derived from the host playhead (Section 10). No reset to step 1 takes place.
