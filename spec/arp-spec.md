@@ -114,7 +114,7 @@ When a lane's input note is released (the source no longer delivers a note, Sect
 
 ### 9.3 Guaranteed Note-Offs
 
-Every note sent receives a Note-Off under all conditions. This applies in particular to grid change, step count change, transport stop, mute, latch end, and bypass.
+Every note sent receives a Note-Off under all conditions. This applies in particular to grid change, step count change, Timing Source change, playhead discontinuity, transport stop, mute, latch end, and bypass.
 
 ### 9.4 Voice Limit
 
@@ -128,7 +128,7 @@ The step position of a lane is defined as (playhead beats − lane phase offset)
 
 ## 11. Live Changes
 
-All changes while the sequencer is running are glitch-free. Changes to step count, grid, or Timing Source take effect at the next step start of the respective lane (phase re-anchoring according to Section 5.4). Changes to step on/off and velocity values take effect immediately. Changes to the input mode take effect at the next step start. Changes to transpose, gate, swing, and output channel affect newly triggered notes; notes already sounding keep their pitch, their velocity, and their scheduled Note-Off time, so that the Note-Off guarantee (Section 9.3) is upheld.
+All changes while the sequencer is running are glitch-free. Changes to step count, grid, or Timing Source take effect at the next step start of the respective lane (phase re-anchoring according to Section 5.4). Changes to step on/off and velocity values take effect immediately. Changes to the input mode, Follow Index, and Follow Channel take effect at the next step start (Section 4.4), except that a release of the source stops the lane immediately. Changes to Mute and Latch take effect immediately (Section 4.6). A change of the velocity mode affects newly triggered notes. Changes to transpose, gate, swing, and output channel affect newly triggered notes; notes already sounding keep their pitch, their velocity, and their scheduled Note-Off time, so that the Note-Off guarantee (Section 9.3) is upheld.
 
 ## 12. Parameters and Automation
 
@@ -142,7 +142,7 @@ Step data (on/off, velocity values per step and mode) and the text grid are non-
 
 ## 13. State and Presets
 
-The plugin stores its complete state in the VST3 state: all global parameters, all lane parameters, and all step data of all lanes. The plugin loads the state when a project is opened. The plugin ships with built-in factory presets. The plugin loads and saves additional preset files from a user folder; the file format is JUCE ValueTree XML. Presets cover the same scope as the plugin state, including the global parameters (Thru, Consume, Chord Input Channel). State and presets carry an integer format version. Loaders accept older versions via migration, ignore unknown fields, clamp invalid values, and reject newer versions by falling back to a safe default state.
+The plugin stores its complete state in the VST3 state: all global parameters, all lane parameters, the text grid content of all lanes, and all step data of all lanes. The plugin loads the state when a project is opened. The plugin ships with built-in factory presets. The plugin loads and saves additional preset files from a user folder; the file format is JUCE ValueTree XML. Presets cover the same scope as the plugin state, including the global parameters (Thru, Consume, Chord Input Channel). State and presets carry an integer format version. Loaders accept older versions via migration, ignore unknown fields, clamp invalid values, and reject newer versions by falling back to a safe default state.
 
 ## 14. UI
 
@@ -182,7 +182,7 @@ The audio thread performs no allocations, locks, or blocking calls. Parameter ch
 
 ## 18. Testability
 
-Unit tests are mandatory. The test framework is Catch2. The reusable modules are testable without a host and without JUCE (Section 16.1). Timing math, grid parser, velocity calculation, index determination, and voice management have their own tests. Edge cases of the specification (index greater than chord, chord re-sorting, velocity clamping, overlap, retrigger policy, Transport reset, playhead discontinuity handling, cross-lane voice retrigger and ownership transfer, per-note pass-through tracking, Note-Off guarantee, voice limit, state version migration) are test cases.
+Unit tests are mandatory. The test framework is Catch2. The reusable modules are testable without a host and without JUCE (Section 16.1). Timing math, grid parser, velocity calculation, index determination, and voice management have their own tests. Edge cases of the specification (index greater than chord, chord re-sorting, velocity clamping, overlap, retrigger policy, transport reset, playhead discontinuity handling, cross-lane voice retrigger and ownership transfer, per-note pass-through tracking, Note-Off guarantee, voice limit, state version migration) are test cases.
 
 ## 19. Code Style
 
