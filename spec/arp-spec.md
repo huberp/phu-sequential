@@ -46,7 +46,7 @@ If a chord note is released while the chord still contains other notes, the sort
 
 ### 4.3 Channel Mode
 
-The user selects a MIDI channel from 1 to 16. The lane follows the most recently played note on this channel. The note is effective only while it is held. There is no note stack: when the followed note is released, the lane stops immediately (Section 9.2), even if older notes on this channel are still held. Before the first note on the channel, the lane is silent.
+The user selects a MIDI channel from 1 to 16. The lane follows the most recently played note on this channel. The note is effective only while it is held. There is no note stack: when the followed note is released, the lane stops immediately if Latch is off (Sections 4.6, 9.2), even if older notes on this channel are still held. Before the first note on the channel, the lane is silent.
 
 ### 4.4 Adoption of New Input
 
@@ -68,7 +68,7 @@ A lane uses a base timing from a list. The list contains 1/32, 1/16, 1/8, 1/4, 1
 
 ### 5.2 Custom Grid (Text Grid)
 
-Alternatively, the user can enter a grid as text. The format is a comma-separated list of n/d fractions. An optional suffix t denotes triplet, an optional suffix . denotes dotted; the two suffixes are mutually exclusive. Example: "1/8t, 1/8., 1/4" defines 3 steps. Only musical values are allowed: the numerator is exactly 1, and the denominator is one of 1, 2, 4, 8, 16, 32, 64; each entry may carry an optional suffix t (triplet) or . (dotted). Other fractions (for example 3/8) are invalid. The total loop length is not restricted. A text grid has at most 64 entries. Each entry defines the length and grid position of one step. The loop length of the lane is the sum of all step lengths. When a new text grid is applied, the step data (on/off and velocity values) are transferred position by position to the new steps; surplus data is discarded, and missing steps receive defaults (on, default velocity of the active mode).
+Alternatively, the user can enter a grid as text. Each lane has a Timing Source switch (Base Timing or Text Grid) that selects which source defines the lane's grid. The inactive source keeps its settings (base timing parameters or the text grid content). Each lane has one step data array shared by both sources; when the lane switches source, or the active source's step count changes, the step data is transferred position by position (surplus data discarded, missing steps receive defaults), with the same live-change timing as Section 11. The format is a comma-separated list of n/d fractions. An optional suffix t denotes triplet, an optional suffix . denotes dotted; the two suffixes are mutually exclusive. Example: "1/8t, 1/8., 1/4" defines 3 steps. Only musical values are allowed: the numerator is exactly 1, and the denominator is one of 1, 2, 4, 8, 16, 32, 64; each entry may carry an optional suffix t (triplet) or . (dotted). Other fractions (for example 3/8) are invalid. The total loop length is not restricted. A text grid has at most 64 entries. Each entry defines the length and grid position of one step. The loop length of the lane is the sum of all step lengths. When a new text grid is applied, the step data (on/off and velocity values) are transferred position by position to the new steps; surplus data is discarded, and missing steps receive defaults (on, default velocity of the active mode).
 
 ### 5.3 Text Grid Validation
 
@@ -136,7 +136,7 @@ Only finite, named parameters are automatable.
 
 Global parameters: Thru, Consume, Chord Input Channel.
 
-Lane parameters (per lane): Mute, Latch, Input Mode, Follow Index (0 to 15), Follow Channel, Output Channel, Transpose, Gate, Base Timing, Subdivision, Swing Amount, Step Count, Velocity Mode.
+Lane parameters (per lane): Mute, Latch, Input Mode, Follow Index (0 to 15), Follow Channel, Output Channel, Transpose, Gate, Timing Source, Base Timing, Subdivision, Swing Amount, Step Count, Velocity Mode.
 
 Step data (on/off, velocity values per step and mode) and the text grid are non-automatable plugin state (Section 13). The text grid is not a host parameter.
 
@@ -146,7 +146,9 @@ The plugin stores its complete state in the VST3 state: all global parameters, a
 
 ## 14. UI
 
-Each lane has a step display. The step display shows the width proportions of the selected timing. Each step can be toggled on/off by clicking. Each step has a vertical drag bar for editing its velocity value; the drag bar edits and displays the value of the currently active velocity mode (in incoming velocity mode the drag bar is disabled). With many steps (e.g. 16), the lane display remains horizontally scrollable or switchable. Each lane shows a playback position indicator. The text grid is presented as editable per lane and is validated (Section 5.3).
+The editor is a single resizable window. A global bar at the top holds Thru, Consume, Chord Input Channel, and the preset browser. Below it, 8 lane rows are stacked, with vertical scrolling if they do not fit. Each lane row has a control strip with all lane parameters (Section 12) and the Timing Source switch, plus the step display and the text-grid field.
+
+The step display shows the width proportions of the active timing source. Each step can be toggled on/off by clicking. Each step has a vertical drag bar for editing its velocity value; the drag bar range follows the active velocity mode (0 to 127, -127 to +127, or 0 to 200 percent) and shows the numeric value while dragging. In incoming velocity mode the drag bars are disabled. With many steps (e.g. 16), the lane display remains horizontally scrollable or switchable. Each lane shows a playback position indicator. The text grid is presented as editable per lane and is validated (Section 5.3); it is editable regardless of the active Timing Source. While Timing Source is Text Grid, the base-timing controls (Base Timing, Subdivision, Swing, Step Count) are shown disabled.
 
 ## 15. Implementation and Tooling
 
@@ -188,7 +190,7 @@ The code is idiomatic, performant, modular, robust, maintainable, and extensible
 
 ## 20. Initial State
 
-Each lane starts with base timing 1/16, subdivision straight, swing 0, step count 16, and all steps on. The velocity mode is incoming velocity. The input mode is chord-follow with index 0. The chord input channel is 1. The output channel is 1 (Section 8). Transpose is 0. Gate is 100 percent. Latch is off. Mute is off. Thru is off. Consume is on.
+Each lane starts with timing source Base Timing, base timing 1/16, subdivision straight, swing 0, step count 16, and all steps on. The velocity mode is incoming velocity. The input mode is chord-follow with index 0. The chord input channel is 1. The output channel is 1 (Section 8). Transpose is 0. Gate is 100 percent. Latch is off. Mute is off. Thru is off. Consume is on.
 
 ## 21. Bypass Behavior
 
