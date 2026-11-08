@@ -128,7 +128,7 @@ The step position of a lane is defined as (playhead beats − lane phase offset)
 
 ## 11. Live Changes
 
-All changes while the sequencer is running are glitch-free. Changes to step count or grid take effect at the next step start of the respective lane (position wrapping according to Section 5.4). Changes to step on/off and velocity values take effect immediately. Changes to the input mode take effect at the next step start. Changes to transpose, gate, swing, and output channel affect newly triggered notes; notes already sounding keep their pitch, their velocity, and their scheduled Note-Off time, so that the Note-Off guarantee (Section 9.3) is upheld.
+All changes while the sequencer is running are glitch-free. Changes to step count, grid, or Timing Source take effect at the next step start of the respective lane (phase re-anchoring according to Section 5.4). Changes to step on/off and velocity values take effect immediately. Changes to the input mode take effect at the next step start. Changes to transpose, gate, swing, and output channel affect newly triggered notes; notes already sounding keep their pitch, their velocity, and their scheduled Note-Off time, so that the Note-Off guarantee (Section 9.3) is upheld.
 
 ## 12. Parameters and Automation
 
