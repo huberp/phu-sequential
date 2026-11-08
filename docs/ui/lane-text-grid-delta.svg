@@ -4,13 +4,13 @@
     .bg{fill:#1e1f24} .cap{fill:#9aa0ac;font-size:12px}
     .ctl{fill:#2f323b;stroke:#4a4e5a;rx:4} .t{fill:#d8dae0;font-size:12px} .dim{fill:#6b6f7a;font-size:12px}
     .dctl{fill:#26282f;stroke:#3a3d46;stroke-dasharray:4 3;rx:4}
-    .on{fill:#4fc3f7;rx:3} .off{fill:#3a3d46;stroke:#555;rx:3}
-    .trk{fill:#262830;stroke:#3a3d46} .bar{fill:#4fc3f7;opacity:.85} .neg{fill:#ef8a5b;opacity:.85}
+    .on{fill:#ba68c8;rx:3} .off{fill:#3a3d46;stroke:#555;rx:3}
+    .trk{fill:#262830;stroke:#3a3d46} .bar{fill:#ba68c8;opacity:.85} .neg{fill:#ef8a5b;opacity:.85}
     .zero{stroke:#9aa0ac;stroke-dasharray:3 3}
     .pos{fill:none;stroke:#f0b429;stroke-width:2;rx:4} .ptr{fill:#f0b429}
   </style>
   <rect class="bg" width="1200" height="212"/>
-  <text class="cap" x="16" y="18">Lane 3 · Input: Chord-Follow (index 1) · Timing Source: Text Grid · Velocity: Delta by Step (−127…+127) · step widths proportional to length</text>
+  <text class="cap" x="16" y="18">Example lane (color purple) · Input: Chord-Follow (index 1) · Timing Source: Text Grid · Velocity: Delta by Step (−127…+127) · step widths proportional to length</text>
 
   <rect class="ctl" x="16" y="28" width="28" height="28"/><text class="t" x="24" y="47">M</text>
   <rect class="ctl" x="50" y="28" width="28" height="28"/><text class="t" x="60" y="47">L</text>
@@ -20,6 +20,7 @@
   <rect class="ctl" x="460" y="28" width="100" height="28"/><text class="t" x="470" y="47">Out Ch: 1</text>
   <rect class="ctl" x="570" y="28" width="110" height="28"/><text class="t" x="580" y="47">Transpose: +7</text>
   <rect class="ctl" x="690" y="28" width="100" height="28"/><text class="t" x="700" y="47">Gate: 100%</text>
+  <rect class="ctl" x="800" y="28" width="110" height="28"/><rect x="808" y="34" width="16" height="16" rx="3" fill="#ba68c8" stroke="#d8dae0"/><text class="t" x="832" y="47">Color ▾</text>
 
   <rect class="ctl" x="16" y="62" width="170" height="28"/>
   <rect class="on" x="102" y="64" width="82" height="24"/>
@@ -30,7 +31,7 @@
   <rect class="dctl" x="416" y="62" width="100" height="28"/><text class="dim" x="426" y="81">Swing: –</text>
   <rect class="dctl" x="526" y="62" width="90" height="28"/><text class="dim" x="536" y="81">Steps: –</text>
   <rect class="ctl" x="626" y="62" width="170" height="28"/><text class="t" x="636" y="81">Velocity: Delta ▾</text>
-  <rect class="ctl" x="806" y="62" width="378" height="28" style="stroke:#4fc3f7"/><text class="t" x="816" y="81">1/8t, 1/8., 1/4, 1/16, 1/16, 1/8</text>
+  <rect class="ctl" x="806" y="62" width="378" height="28" style="stroke:#ba68c8"/><text class="t" x="816" y="81">1/8t, 1/8., 1/4, 1/16, 1/16, 1/8</text>
 
   <!-- steps 6, widths ∝ 1/8t=1/12, 1/8.=3/16, 1/4, 1/16, 1/16, 1/8 (whole notes); zero line at y=158 (bar area y=130..186) -->
   <rect class="on" x="16" y="100" width="122" height="24"/><rect class="trk" x="16" y="130" width="122" height="56"/><rect class="bar" x="16" y="140" width="122" height="18"/><text class="t" x="22" y="154" style="fill:#0b1b24">+40</text>
