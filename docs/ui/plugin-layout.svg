@@ -1,13 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1340" viewBox="0 0 1280 1340" font-family="sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1360" viewBox="0 0 1280 1360" font-family="sans-serif">
   <title>Plugin editor layout sketch</title>
   <style>
     .win{fill:#1e1f24;stroke:#4a4e5a;stroke-width:2} .gbar{fill:#2a2c33;stroke:#4a4e5a;rx:6}
     .lane{fill:#25272e;stroke:#3a3d46;rx:6}
     .ctl{fill:#2f323b;stroke:#4a4e5a;rx:3} .t{fill:#d8dae0;font-size:11px} .dim{fill:#8a8f9a;font-size:11px}
-    .h{fill:#d8dae0;font-size:16px;font-weight:bold}
-    .on{fill:#4fc3f7;rx:2} .off{fill:#3a3d46;stroke:#555;rx:2}
-    .trk{fill:#262830;stroke:#3a3d46} .bar{fill:#4fc3f7;opacity:.85}
-    .seg{fill:#4fc3f7;rx:3}
+    .h{fill:#d8dae0;font-size:16px;font-weight:bold} .hl{fill:currentColor;font-size:16px;font-weight:bold}
+    .on{fill:currentColor;rx:2} .off{fill:#3a3d46;stroke:#555;rx:2}
+    .trk{fill:#262830;stroke:#3a3d46} .bar{fill:currentColor;opacity:.85}
+    .seg{fill:currentColor;rx:3} .swatch{fill:currentColor;stroke:#d8dae0;rx:3}
     .sb{fill:#2a2c33} .thumb{fill:#555a66;rx:4}
     .mk{fill:#f0b429} .mkt{fill:#2a1d00;font-size:11px;font-weight:bold}
     .pos{fill:none;stroke:#f0b429;stroke-width:2;rx:3}
@@ -15,9 +15,8 @@
   </style>
 
   <defs>
-    <!-- compact lane, 1240 x 140; identical for all 8 lanes in this layout sketch. Lane modes: see lane-*.svg -->
-    <g id="lane">
-      <rect class="lane" width="1240" height="140"/>
+    <!-- control strip shared by all lanes (colour via inherited `color`); Steps control is added per lane -->
+    <g id="strip">
       <rect class="ctl" x="36" y="6" width="22" height="22"/><text class="t" x="43" y="21">M</text>
       <rect class="ctl" x="62" y="6" width="22" height="22"/><text class="t" x="70" y="21">L</text>
       <rect class="ctl" x="90" y="6" width="110" height="22"/><text class="t" x="98" y="21">Input: Chord ▾</text>
@@ -26,17 +25,20 @@
       <rect class="ctl" x="348" y="6" width="80" height="22"/><text class="t" x="356" y="21">Out Ch: 1</text>
       <rect class="ctl" x="434" y="6" width="100" height="22"/><text class="t" x="442" y="21">Transpose: 0</text>
       <rect class="ctl" x="540" y="6" width="86" height="22"/><text class="t" x="548" y="21">Gate: 100%</text>
+      <rect class="ctl" x="632" y="6" width="96" height="22"/><rect class="swatch" x="638" y="10" width="14" height="14"/><text class="t" x="658" y="21">Color ▾</text>
 
       <rect class="ctl" x="36" y="32" width="100" height="22"/><rect class="seg" x="38" y="34" width="52" height="18"/>
       <text class="t" x="42" y="47" style="fill:#0b1b24">Base</text><text class="t" x="102" y="47">Grid</text>
       <rect class="ctl" x="142" y="32" width="60" height="22"/><text class="t" x="150" y="47">1/16 ▾</text>
       <rect class="ctl" x="208" y="32" width="84" height="22"/><text class="t" x="216" y="47">straight ▾</text>
       <rect class="ctl" x="298" y="32" width="84" height="22"/><text class="t" x="306" y="47">Swing: 0%</text>
-      <rect class="ctl" x="388" y="32" width="74" height="22"/><text class="t" x="396" y="47">Steps: 16</text>
+      <!-- Steps control placed per lane at x=388 -->
       <rect class="ctl" x="468" y="32" width="140" height="22"/><text class="t" x="476" y="47">Vel: By Step ▾</text>
       <rect class="ctl" x="614" y="32" width="560" height="22"/><text class="dim" x="622" y="47">text grid, e.g. 1/8t, 1/8., 1/4  (red = invalid entry)</text>
+    </g>
 
-      <!-- 16 steps: pad (y=60) + velocity drag bar (y=80..128) -->
+    <!-- 16 steps, pitch 71 -->
+    <g id="steps16">
       <rect class="on" x="36" y="60" width="67" height="16"/><rect class="trk" x="36" y="80" width="67" height="48"/><rect class="bar" x="36" y="88" width="67" height="40"/>
       <rect class="on" x="107" y="60" width="67" height="16"/><rect class="trk" x="107" y="80" width="67" height="48"/><rect class="bar" x="107" y="100" width="67" height="28"/>
       <rect class="on" x="178" y="60" width="67" height="16"/><rect class="trk" x="178" y="80" width="67" height="48"/><rect class="bar" x="178" y="94" width="67" height="34"/>
@@ -53,20 +55,48 @@
       <rect class="on" x="959" y="60" width="67" height="16"/><rect class="trk" x="959" y="80" width="67" height="48"/><rect class="bar" x="959" y="90" width="67" height="38"/>
       <rect class="on" x="1030" y="60" width="67" height="16"/><rect class="trk" x="1030" y="80" width="67" height="48"/><rect class="bar" x="1030" y="102" width="67" height="26"/>
       <rect class="on" x="1101" y="60" width="67" height="16"/><rect class="trk" x="1101" y="80" width="67" height="48"/><rect class="bar" x="1101" y="84" width="67" height="44"/>
-      <!-- lane-local horizontal scroll for many steps -->
+      <!-- lane-local horizontal scroll bar, needed only with many steps -->
       <rect class="sb" x="36" y="131" width="1132" height="6"/><rect class="thumb" x="36" y="131" width="900" height="6"/>
-      <!-- playback position indicator -->
       <rect class="pos" x="318" y="58" width="71" height="72"/>
+    </g>
+
+    <!-- 12 steps, pitch 94, width 90 -->
+    <g id="steps12">
+      <rect class="on" x="36" y="60" width="90" height="16"/><rect class="trk" x="36" y="80" width="90" height="48"/><rect class="bar" x="36" y="90" width="90" height="38"/>
+      <rect class="on" x="130" y="60" width="90" height="16"/><rect class="trk" x="130" y="80" width="90" height="48"/><rect class="bar" x="130" y="102" width="90" height="26"/>
+      <rect class="off" x="224" y="60" width="90" height="16"/><rect class="trk" x="224" y="80" width="90" height="48"/>
+      <rect class="on" x="318" y="60" width="90" height="16"/><rect class="trk" x="318" y="80" width="90" height="48"/><rect class="bar" x="318" y="86" width="90" height="42"/>
+      <rect class="on" x="412" y="60" width="90" height="16"/><rect class="trk" x="412" y="80" width="90" height="48"/><rect class="bar" x="412" y="110" width="90" height="18"/>
+      <rect class="on" x="506" y="60" width="90" height="16"/><rect class="trk" x="506" y="80" width="90" height="48"/><rect class="bar" x="506" y="96" width="90" height="32"/>
+      <rect class="on" x="600" y="60" width="90" height="16"/><rect class="trk" x="600" y="80" width="90" height="48"/><rect class="bar" x="600" y="88" width="90" height="40"/>
+      <rect class="off" x="694" y="60" width="90" height="16"/><rect class="trk" x="694" y="80" width="90" height="48"/>
+      <rect class="on" x="788" y="60" width="90" height="16"/><rect class="trk" x="788" y="80" width="90" height="48"/><rect class="bar" x="788" y="100" width="90" height="28"/>
+      <rect class="on" x="882" y="60" width="90" height="16"/><rect class="trk" x="882" y="80" width="90" height="48"/><rect class="bar" x="882" y="92" width="90" height="36"/>
+      <rect class="on" x="976" y="60" width="90" height="16"/><rect class="trk" x="976" y="80" width="90" height="48"/><rect class="bar" x="976" y="84" width="90" height="44"/>
+      <rect class="on" x="1070" y="60" width="90" height="16"/><rect class="trk" x="1070" y="80" width="90" height="48"/><rect class="bar" x="1070" y="104" width="90" height="24"/>
+      <rect class="pos" x="410" y="58" width="94" height="72"/>
+    </g>
+
+    <!-- 7 steps, pitch 162, width 158 -->
+    <g id="steps7">
+      <rect class="on" x="36" y="60" width="158" height="16"/><rect class="trk" x="36" y="80" width="158" height="48"/><rect class="bar" x="36" y="88" width="158" height="40"/>
+      <rect class="on" x="198" y="60" width="158" height="16"/><rect class="trk" x="198" y="80" width="158" height="48"/><rect class="bar" x="198" y="104" width="158" height="24"/>
+      <rect class="on" x="360" y="60" width="158" height="16"/><rect class="trk" x="360" y="80" width="158" height="48"/><rect class="bar" x="360" y="92" width="158" height="36"/>
+      <rect class="off" x="522" y="60" width="158" height="16"/><rect class="trk" x="522" y="80" width="158" height="48"/>
+      <rect class="on" x="684" y="60" width="158" height="16"/><rect class="trk" x="684" y="80" width="158" height="48"/><rect class="bar" x="684" y="84" width="158" height="44"/>
+      <rect class="on" x="846" y="60" width="158" height="16"/><rect class="trk" x="846" y="80" width="158" height="48"/><rect class="bar" x="846" y="98" width="158" height="30"/>
+      <rect class="on" x="1008" y="60" width="158" height="16"/><rect class="trk" x="1008" y="80" width="158" height="48"/><rect class="bar" x="1008" y="110" width="158" height="18"/>
+      <rect class="pos" x="358" y="58" width="162" height="72"/>
     </g>
   </defs>
 
-  <rect class="win" x="1" y="1" width="1278" height="1338"/>
+  <rect class="win" x="1" y="1" width="1278" height="1358"/>
 
   <!-- global bar -->
   <rect class="gbar" x="10" y="10" width="1240" height="52"/>
   <text class="h" x="24" y="42">PHU SEQUENTIAL</text>
   <rect class="ctl" x="230" y="20" width="80" height="32"/><text class="t" x="242" y="40">Thru: off</text>
-  <rect class="ctl" x="320" y="20" width="110" height="32"/><rect class="seg" x="322" y="22" width="106" height="28"/><text class="t" x="332" y="40" style="fill:#0b1b24">Consume: on</text>
+  <rect class="ctl" x="320" y="20" width="110" height="32" style="fill:#4fc3f7"/><text class="t" x="332" y="40" style="fill:#0b1b24">Consume: on</text>
   <rect class="ctl" x="440" y="20" width="170" height="32"/><text class="t" x="450" y="40">Chord Input Ch: 1 ▾</text>
   <rect class="ctl" x="860" y="20" width="26" height="32"/><text class="t" x="868" y="40">◂</text>
   <rect class="ctl" x="890" y="20" width="230" height="32"/><text class="t" x="900" y="40">Preset: Init ▾</text>
@@ -74,32 +104,34 @@
   <rect class="ctl" x="1156" y="20" width="44" height="32"/><text class="t" x="1163" y="40">Save</text>
   <rect class="ctl" x="1204" y="20" width="40" height="32"/><text class="t" x="1210" y="40">Load</text>
 
-  <!-- 8 stacked lanes, vertical scroll if they do not fit -->
-  <use href="#lane" x="10" y="76"/>   <text class="h" x="16" y="100">1</text>
-  <use href="#lane" x="10" y="224"/>  <text class="h" x="16" y="248">2</text>
-  <use href="#lane" x="10" y="372"/>  <text class="h" x="16" y="396">3</text>
-  <use href="#lane" x="10" y="520"/>  <text class="h" x="16" y="544">4</text>
-  <use href="#lane" x="10" y="668"/>  <text class="h" x="16" y="692">5</text>
-  <use href="#lane" x="10" y="816"/>  <text class="h" x="16" y="840">6</text>
-  <use href="#lane" x="10" y="964"/>  <text class="h" x="16" y="988">7</text>
-  <use href="#lane" x="10" y="1112"/> <text class="h" x="16" y="1136">8</text>
+  <!-- 8 stacked lanes, each in its own lane color (palette order); lane 5 has 7 steps, lane 7 has 12 steps -->
+  <g transform="translate(10,76)" color="#4fc3f7"><rect class="lane" width="1240" height="140"/><text class="hl" x="12" y="24">1</text><use href="#strip"/><rect class="ctl" x="388" y="32" width="74" height="22"/><text class="t" x="396" y="47">Steps: 16</text><use href="#steps16"/></g>
+  <g transform="translate(10,224)" color="#81c784"><rect class="lane" width="1240" height="140"/><text class="hl" x="12" y="24">2</text><use href="#strip"/><rect class="ctl" x="388" y="32" width="74" height="22"/><text class="t" x="396" y="47">Steps: 16</text><use href="#steps16"/></g>
+  <g transform="translate(10,372)" color="#ba68c8"><rect class="lane" width="1240" height="140"/><text class="hl" x="12" y="24">3</text><use href="#strip"/><rect class="ctl" x="388" y="32" width="74" height="22"/><text class="t" x="396" y="47">Steps: 16</text><use href="#steps16"/></g>
+  <g transform="translate(10,520)" color="#f06292"><rect class="lane" width="1240" height="140"/><text class="hl" x="12" y="24">4</text><use href="#strip"/><rect class="ctl" x="388" y="32" width="74" height="22"/><text class="t" x="396" y="47">Steps: 16</text><use href="#steps16"/></g>
+  <g transform="translate(10,668)" color="#4db6ac"><rect class="lane" width="1240" height="140"/><text class="hl" x="12" y="24">5</text><use href="#strip"/><rect class="ctl" x="388" y="32" width="74" height="22"/><text class="t" x="396" y="47">Steps: 7</text><use href="#steps7"/></g>
+  <g transform="translate(10,816)" color="#7986cb"><rect class="lane" width="1240" height="140"/><text class="hl" x="12" y="24">6</text><use href="#strip"/><rect class="ctl" x="388" y="32" width="74" height="22"/><text class="t" x="396" y="47">Steps: 16</text><use href="#steps16"/></g>
+  <g transform="translate(10,964)" color="#dce775"><rect class="lane" width="1240" height="140"/><text class="hl" x="12" y="24">7</text><use href="#strip"/><rect class="ctl" x="388" y="32" width="74" height="22"/><text class="t" x="396" y="47">Steps: 12</text><use href="#steps12"/></g>
+  <g transform="translate(10,1112)" color="#a1887f"><rect class="lane" width="1240" height="140"/><text class="hl" x="12" y="24">8</text><use href="#strip"/><rect class="ctl" x="388" y="32" width="74" height="22"/><text class="t" x="396" y="47">Steps: 16</text><use href="#steps16"/></g>
 
   <!-- vertical window scrollbar -->
   <rect class="sb" x="1262" y="76" width="8" height="1176"/><rect class="thumb" x="1262" y="76" width="8" height="820"/>
 
   <!-- resize handle -->
-  <polygon points="1276,1306 1276,1336 1246,1336" fill="#555a66"/>
+  <polygon points="1276,1326 1276,1356 1246,1356" fill="#555a66"/>
 
   <!-- numbered markers -->
   <circle class="mk" cx="720" cy="36" r="10"/><text class="mkt" x="716" y="40">1</text>
-  <circle class="mk" cx="1210" cy="106" r="10"/><text class="mkt" x="1206" y="110">2</text>
-  <circle class="mk" cx="1210" cy="134" r="10"/><text class="mkt" x="1206" y="138">3</text>
-  <circle class="mk" cx="1210" cy="170" r="10"/><text class="mkt" x="1206" y="174">4</text>
-  <circle class="mk" cx="1266" cy="500" r="10"/><text class="mkt" x="1262" y="504">5</text>
+  <circle class="mk" cx="1212" cy="104" r="10"/><text class="mkt" x="1208" y="108">2</text>
+  <circle class="mk" cx="752" cy="93" r="10"/><text class="mkt" x="748" y="97">3</text>
+  <circle class="mk" cx="1212" cy="152" r="10"/><text class="mkt" x="1208" y="156">4</text>
+  <circle class="mk" cx="1212" cy="190" r="10"/><text class="mkt" x="1208" y="194">5</text>
+  <circle class="mk" cx="1266" cy="500" r="10"/><text class="mkt" x="1262" y="504">6</text>
 
   <!-- legend -->
   <text class="cap" x="16" y="1274">1 Global bar: Thru, Consume, Chord Input Channel (automatable), preset browser (factory + user presets).  2 Lane control strip: all lane parameters incl. Timing Source switch.</text>
-  <text class="cap" x="16" y="1292">3 Step display: width ∝ step length; click pad = on/off; vertical drag bar = velocity of the active mode.  4 Playback position indicator; lane scrolls horizontally with many steps.</text>
-  <text class="cap" x="16" y="1310">5 Lanes stack vertically; the window is resizable and scrolls vertically. Lanes are drawn identically here — see lane-*.svg for mode variants.</text>
-  <text class="cap" x="16" y="1328">Base-timing controls (timing, subdivision, swing, steps) are disabled while Timing Source = Grid; the text-grid field stays editable.</text>
+  <text class="cap" x="16" y="1292">3 Color picker: sets the lane color; on-state step pads, velocity drag bars and the lane number are drawn in it (defaults: 8-color palette in lane order).  4 Step display: width ∝ step length; click pad = on/off; drag bar = velocity.</text>
+  <text class="cap" x="16" y="1310">5 Playback position indicator; a lane with many steps scrolls horizontally (lane 1–4, 6, 8: 16 steps).  Lane 5 has 7 steps, lane 7 has 12 steps – step counts are independent per lane.</text>
+  <text class="cap" x="16" y="1328">6 Lanes stack vertically; the window is resizable and scrolls vertically. Lane controls are drawn identically here — see lane-*.svg for mode variants.</text>
+  <text class="cap" x="16" y="1346">Base-timing controls are disabled while Timing Source = Grid; the text-grid field stays editable.</text>
 </svg>

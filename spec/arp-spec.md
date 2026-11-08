@@ -32,7 +32,7 @@ For index usage, notes are sorted ascending by pitch. Index 0 denotes the lowest
 
 ## 4. Sequencer Lanes
 
-The plugin has exactly 8 sequencer lanes. Each lane is independently configurable. Each lane has a mute switch. Each lane uses exactly one input mode.
+The plugin has exactly 8 sequencer lanes. Each lane is independently configurable. Each lane has a mute switch. Each lane has a lane color chosen with a color picker (Section 14). The lane color is purely visual and has no effect on MIDI processing. Each lane uses exactly one input mode.
 
 ### 4.1 Non-Exclusivity
 
@@ -138,15 +138,15 @@ Global parameters: Thru, Consume, Chord Input Channel.
 
 Lane parameters (per lane): Mute, Latch, Input Mode, Follow Index (0 to 15), Follow Channel, Output Channel, Transpose, Gate, Timing Source, Base Timing, Subdivision, Swing Amount, Step Count, Velocity Mode.
 
-Step data (on/off, velocity values per step and mode) and the text grid are non-automatable plugin state (Section 13). The text grid is not a host parameter.
+Step data (on/off, velocity values per step and mode), the text grid, and the lane color (an opaque RGB value per lane) are non-automatable plugin state (Section 13). The text grid and the lane color are not host parameters.
 
 ## 13. State and Presets
 
-The plugin stores its complete state in the VST3 state: all global parameters, all lane parameters, the text grid content of all lanes, and all step data of all lanes. The plugin loads the state when a project is opened. The plugin ships with built-in factory presets. The plugin loads and saves additional preset files from a user folder; the file format is JUCE ValueTree XML. Presets cover the same scope as the plugin state, including the global parameters (Thru, Consume, Chord Input Channel). State and presets carry an integer format version. Loaders accept older versions via migration, ignore unknown fields, clamp invalid values, and reject newer versions by falling back to a safe default state.
+The plugin stores its complete state in the VST3 state: all global parameters, all lane parameters, the text grid content of all lanes, the lane colors, and all step data of all lanes. The plugin loads the state when a project is opened. The plugin ships with built-in factory presets. The plugin loads and saves additional preset files from a user folder; the file format is JUCE ValueTree XML. Presets cover the same scope as the plugin state, including the global parameters (Thru, Consume, Chord Input Channel). State and presets carry an integer format version. Loaders accept older versions via migration, ignore unknown fields, clamp invalid values, and reject newer versions by falling back to a safe default state.
 
 ## 14. UI
 
-The editor is a single resizable window. A global bar at the top holds Thru, Consume, Chord Input Channel, and the preset browser. Below it, 8 lane rows are stacked, with vertical scrolling if they do not fit. Each lane row has a control strip with all lane parameters (Section 12) and the Timing Source switch, plus the step display and the text-grid field.
+The editor is a single resizable window. A global bar at the top holds Thru, Consume, Chord Input Channel, and the preset browser. Below it, 8 lane rows are stacked, with vertical scrolling if they do not fit. Each lane row has a control strip with all lane parameters (Section 12), the Timing Source switch, and a color picker for the lane color, plus the step display and the text-grid field. The lane color is used for the lane's steps: the on-state step pads and the velocity drag bars are drawn in the lane color; off steps are drawn neutral. Lane number and other lane UI elements may use the lane color as accent. Colors are shown at the same time for all lanes so lanes are distinguishable at a glance. The lane color does not change any other lane's color.
 
 The step display shows the width proportions of the active timing source. Each step can be toggled on/off by clicking. Each step has a vertical drag bar for editing its velocity value; the drag bar range follows the active velocity mode (0 to 127, -127 to +127, or 0 to 200 percent) and shows the numeric value while dragging. In incoming velocity mode the drag bars are disabled. With many steps (e.g. 16), the lane display remains horizontally scrollable or switchable. Each lane shows a playback position indicator. The text grid is presented as editable per lane and is validated (Section 5.3); it is editable regardless of the active Timing Source. While Timing Source is Text Grid, the base-timing controls (Base Timing, Subdivision, Swing, Step Count) are shown disabled.
 
@@ -166,7 +166,7 @@ The timing values 1/32 to 1/1 are defined declaratively as data in exactly one p
 
 ### 16.3 Magic Constants
 
-The code contains no magic constants. All numeric values (timing list, modifier factors, velocity limits, channel count, lane count, step limits, follow index maximum, voice limit) are named constants in a central place. The velocity limits (0, 127, delta range) are defined in exactly one place.
+The code contains no magic constants. All numeric values (timing list, modifier factors, velocity limits, channel count, lane count, step limits, follow index maximum, voice limit, default lane color palette) are named constants in a central place. The velocity limits (0, 127, delta range) are defined in exactly one place.
 
 ### 16.4 Selection Logic Instead of Branching Orgies
 
@@ -190,7 +190,7 @@ The code is idiomatic, performant, modular, robust, maintainable, and extensible
 
 ## 20. Initial State
 
-Each lane starts with timing source Base Timing, base timing 1/16, subdivision straight, swing 0, step count 16, and all steps on. The velocity mode is incoming velocity. The input mode is chord-follow with index 0. The chord input channel is 1. The output channel is 1 (Section 8). Transpose is 0. Gate is 100 percent. Latch is off. Mute is off. Thru is off. Consume is on.
+Each lane starts with timing source Base Timing, base timing 1/16, subdivision straight, swing 0, step count 16, and all steps on. The velocity mode is incoming velocity. The input mode is chord-follow with index 0. The chord input channel is 1. The output channel is 1 (Section 8). Transpose is 0. Gate is 100 percent. Latch is off. Mute is off. The lane colors default to a fixed palette of 8 distinct colors, assigned in lane order (lane 1 to lane 8); the palette is a named constant (Section 16.3). Thru is off. Consume is on.
 
 ## 21. Bypass Behavior
 

@@ -4,14 +4,14 @@
     .bg{fill:#1e1f24} .cap{fill:#9aa0ac;font-size:12px}
     .ctl{fill:#2f323b;stroke:#4a4e5a;rx:4} .t{fill:#d8dae0;font-size:12px} .dim{fill:#6b6f7a;font-size:12px}
     .mute{fill:#e5534b;rx:4}
-    .on{fill:#4fc3f7;rx:3} .off{fill:#3a3d46;stroke:#555;rx:3}
-    .trk{fill:#262830;stroke:#3a3d46} .bar{fill:#4fc3f7;opacity:.85}
+    .on{fill:#f06292;rx:3} .off{fill:#3a3d46;stroke:#555;rx:3}
+    .trk{fill:#262830;stroke:#3a3d46} .bar{fill:#f06292;opacity:.85}
     .hund{stroke:#9aa0ac;stroke-dasharray:3 3}
     .err{fill:#e5534b;font-size:12px}
     .pos{fill:none;stroke:#f0b429;stroke-width:2;rx:4} .ptr{fill:#f0b429}
   </style>
   <rect class="bg" width="1200" height="212"/>
-  <text class="cap" x="16" y="18">Lane 4 · MUTED (position keeps running) · Base Timing 1/4 dotted, 5 steps · Velocity: Relative (0–200 %) · text grid with invalid entry</text>
+  <text class="cap" x="16" y="18">Example lane (color pink) · MUTED (position keeps running) · Base Timing 1/4 dotted, 5 steps · Velocity: Relative (0–200 %) · text grid with invalid entry</text>
 
   <g opacity="0.55">
     <rect class="mute" x="16" y="28" width="28" height="28" style="opacity:1"/>
@@ -25,6 +25,7 @@
     <rect class="ctl" x="460" y="28" width="100" height="28"/><text class="t" x="470" y="47">Out Ch: 10</text>
     <rect class="ctl" x="570" y="28" width="110" height="28"/><text class="t" x="580" y="47">Transpose: +12</text>
     <rect class="ctl" x="690" y="28" width="100" height="28"/><text class="t" x="700" y="47">Gate: 150%</text>
+    <rect class="ctl" x="800" y="28" width="110" height="28"/><rect x="808" y="34" width="16" height="16" rx="3" fill="#f06292" stroke="#d8dae0"/><text class="t" x="832" y="47">Color ▾</text>
 
     <rect class="ctl" x="16" y="62" width="170" height="28"/>
     <rect class="on" x="18" y="64" width="82" height="24"/>
