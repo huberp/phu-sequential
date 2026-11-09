@@ -297,7 +297,13 @@ inline constexpr int voiceOwnerCount         = lanes::laneCount + 1;            
 inline constexpr int inputEventsPerChunk     = 4096;   // core input per core call; adapter streams in chunks, no per-host-block ceiling (D-30, D-51)
 inline constexpr int samplesPerChunk         = 4096;   // max samples per core call (bounds timeline output per call, D-51)
 inline constexpr int outputEventsPerBlock    = 16384;  // core output per core call; drained by the adapter after each call
-inline constexpr int outputMidiReserveBytes  = 1048576; // each processor-owned output juce::MidiBuffer, reserved in prepareToPlay (D-45)
+inline constexpr int noteOffReserveEvents    = maximumSoundingVoices; // 2048 core-output slots only Note-Offs may use (D-30)
+inline constexpr int outputMidiReserveBytes  = 1048576; // processor-owned output scratch juce::MidiBuffer, reserved in prepareToPlay (D-45)
+inline constexpr int midiEventBytes          = 9;      // 3-byte channel message + JUCE header sizeof(int32)+sizeof(uint16)
+inline constexpr int noteOffReserveBytes     = maximumSoundingVoices * midiEventBytes;     // 18432: core Note-Offs only (D-45)
+inline constexpr int rawReleaseReserveBytes  = 3 * midi::channelCount * midiEventBytes;    // 432: CC64<64, CC120, CC123 per channel
+inline constexpr int deferredEventCapacity   = 8192;   // zero-sample deferral store entries (D-53)
+inline constexpr int deferredArenaBytes      = 65536;  // zero-sample deferral store bytes for non-release payloads (SysEx, D-53)
 } // namespace capacity
 
 namespace colors { // §14, §20; RGB 0xRRGGBB, lane order 1..8 (docs/ui/README.md)
@@ -508,12 +514,16 @@ class OutputEventBuffer {                         // D-30
 public:
     explicit OutputEventBuffer(std::size_t capacity = constants::capacity::outputEventsPerBlock); // [MT] allocates once
     void clear() noexcept;                                                    // [RT]
-    // Note-Offs: always accepted while size() < capacity(); returns false only on hard overflow (asserted).
+    // Fixed partition (D-30): the last noteOffReserveEvents (2048) slots are usable by Note-Offs only.
+    // Note-Offs: always accepted while size() < capacity(). Proof: a Note-On is admitted only if afterwards
+    // ≥ 2048 slots stay free; sounding voices ≤ maximumSoundingVoices = 2048 (lane voices ≤ 8 × 32 = 256 plus
+    // pass-through voices, one registry slot per (channel, pitch)), and every later Note-Off ends one of them,
+    // so the Note-Offs of all voices sounding at any time fit. Returns false only on an asserted logic error.
     bool pushNoteOff(const MidiEvent&) noexcept;                              // [RT]
-    // Note-Ons: accepted only if free slots after the push still cover `soundingVoiceCount + 1` future
-    // Note-Offs; otherwise dropped and counted. Safety net only: per core call the bound of §5.2 (≈ 14 k)
-    // stays below capacity, so this never triggers in practice (D-30).
-    [[nodiscard]] bool tryPushNoteOn(const MidiEvent&, int soundingVoiceCount) noexcept; // [RT]
+    // Note-Ons (lane, pass-through, bypassed raw notes): accepted only if size()+1 <= capacity() - 2048;
+    // otherwise refused and counted, and the caller does not start the voice. Per core call the bound of §5.2
+    // (13 376 events) is below the 14 336 general slots, so a refusal cannot occur (D-30).
+    [[nodiscard]] bool tryPushNoteOn(const MidiEvent&) noexcept;              // [RT]
     [[nodiscard]] std::span<const MidiEvent> events() const noexcept;         // non-decreasing sampleOffset
     [[nodiscard]] std::size_t size() const noexcept;
     [[nodiscard]] std::size_t capacity() const noexcept;
@@ -1119,6 +1129,7 @@ struct PlaybackStatus {                   // audio -> editor (M18 TripleBuffer);
     bool transportPlaying = false;
     bool bypassed = false;
     std::uint32_t droppedOutputEventsTotal = 0;
+    std::uint32_t hostOutputGrowthCount = 0;      // set by the adapter (D-54, A-43)
 };
 
 class SequencerCore {
@@ -1297,16 +1308,17 @@ Let `n = numSamples` (of this chunk), `cfg = clampConfiguration(configuration)`.
    6. `idle`, `stopped`: skip step 5's timeline part (only input events are processed, all at their offsets).
 5. **Merged loop** (timeline items only if playing; input events always): repeat
    - `tv = voices_.nextScheduledEnd()` (beat, O(1), M11), `tl = min_i lanes_[i].nextTimelineBeat()` (lowest lane index on tie);
-   - `tItem = min(tv, tl)`; the timeline item exists iff `tItem < clock.windowEndBeat`; its sample `sItem = clock.toSampleOffset(tItem)`. If `moreInputAtSameOffset`: only voice ends with `sItem == 0` exist; lane step starts and all later items are left pending for the next call (D-51);
+   - **Same-offset pieces** (`moreInputAtSameOffset`, D-51): lane step starts are suppressed in this call, so the timeline candidate is computed from voice ends **only**: `tItem = tv`, and the item exists iff `tv < clock.windowEndBeat` and `clock.toSampleOffset(tv) == 0`. `tl` is not consulted, so a suppressed (possibly earlier) lane start can never hide or block a due voice end. Lane step starts and all items with `sItem > 0` stay pending for the next call;
+   - **Otherwise** (final piece / regular chunk): `tItem = min(tv, tl)`; the timeline item exists iff `tItem < clock.windowEndBeat`; its sample `sItem = clock.toSampleOffset(tItem)`;
    - next input event `e` (if any) is processed first iff no timeline item exists, or `e.sampleOffset < sItem`, or (`e.sampleOffset == sItem` and the timeline item is a lane event) — see 5.3;
    - **input event**: `e' = normalizeNoteEvent(e)`; `changed = heldNotes_.apply(e')`; `passThrough_.process(e', policy, voices_, output)`; if `changed` (note events, CC64) and playing: every lane `onHeldNotesChanged(e.sampleOffset)`;
-   - **voice end** (`tv <= tl`): `voices_.endVoice(handle, sItem, output)`;
+   - **voice end** (item is a voice end, i.e. `tv <= tl`, or always in a same-offset piece): `voices_.endVoice(handle, sItem, output)`;
    - **lane event**: `lanes_[i].processNextTimelineEvent(ctx)` (one step start: commits, then trigger; events at `clock.toSampleOffset(beat)`);
    - stop when inputs are exhausted and no timeline item exists.
    Items with `beat < windowStartBeat` cannot exist (lanes and registry are only scheduled forward; a swung step start is scheduled at the preceding step start, which is earlier, D-4/D-50); items exactly at `windowStartBeat` are inside the window.
 6. Publish: `PlaybackStatus` from lanes' `status()`; `BlockResult.discardStateChanged` if any lane's discard revision or mask changed (D-32); dropped event count.
 
-Bound per core call (chunk ≤ `samplesPerChunk` = 4096 samples, ≤ 4096 input events): each lane processes ≤ (step starts in the window) items, each emitting ≤ 3 events (retrigger Off, eviction Off, On); voice ends ≤ starts + 2048; input ≤ 4096 events → ≤ 2 output events each; block-start releases ≤ 2048. With the shortest step (1/64 triplet = 1/24 beat) at 999 BPM, 48 kHz, 4096 samples ≈ 34 step starts per lane: ≤ 2048 + 8192 + 8·34·3 + (8·34 + 2048) ≈ 13.1 k < 16384, so the core output buffer cannot overflow; its refusal rule (M06) is a safety net only.
+Bound per core call (chunk ≤ `samplesPerChunk` = 4096 samples, ≤ 4096 input events): each lane processes ≤ (step starts in the window) items, each emitting ≤ 3 events (retrigger Off, eviction Off, On); voice ends ≤ starts + 2048; input ≤ 4096 events → ≤ 2 output events each; block-start releases ≤ 2048. With the shortest step (1/64 triplet = 1/24 beat) at 999 BPM, 48 kHz, 4096 samples ≈ 34 step starts per lane: ≤ 2048 + 8192 + 8·34·3 + (8·34 + 2048) = 13 376 ≤ 14 336 = 16384 − `noteOffReserveEvents` (2048), so even core Note-Ons are never refused; Note-Offs additionally own the 2048 reserved slots (M06 partition, D-30), so no core output event is ever dropped.
 
 ### 5.3 Ordering rules for equal times (D-14)
 
@@ -1355,7 +1367,7 @@ enum class HostEventRoute : std::uint8_t { coreOnly, coreAndRaw, rawOnly };
 // of its own beyond the caller's fixed array; no per-host-block event ceiling.
 class ChunkedInputReader {
 public:
-    ChunkedInputReader(const juce::MidiBuffer& hostInput, int numSamples) noexcept;            // [RT]
+    ChunkedInputReader(const DeferredInputStore& deferred, const juce::MidiBuffer& hostInput, int numSamples) noexcept; // [RT] deferred first, at offset 0
     // Fills `chunk` (capacity inputEventsPerChunk) with the next chunk's core events (offsets relative to the chunk
     // start) and returns its descriptor; false when the host block is exhausted. Rules: D-51 / §6.1 step 3.
     struct ChunkDescriptor { int startSample; int numSamples; int eventCount; bool moreInputAtSameOffset; };
@@ -1363,19 +1375,53 @@ public:
               ChunkDescriptor&) noexcept;                                                     // [RT]
 };
 
-// Fixed-capacity output writer over a processor-owned juce::MidiBuffer (D-45). Never allocates: every append first
-// checks `buffer.data.size() + eventBytes <= buffer.data.getNumAllocated()` (eventBytes = message bytes +
-// sizeof(int32) + sizeof(uint16), JUCE's per-event header). Release class = Note-Off, Note-On v=0, CC64 < 64,
-// CC120, CC123: appended while any allocated capacity remains. Everything else (raw non-note events, Note-Ons):
-// appended only if afterwards at least releaseHeadroomBytes() remain. Refused events are counted.
+// Fixed-capacity output writer over the processor-owned scratch juce::MidiBuffer `outputScratch_` (D-45). Never
+// allocates and never clears its target implicitly (the processor calls `beginBlock()` once per non-empty host block).
+// Every append first checks the byte budget against `C = target.data.getNumAllocated()` (≥ outputMidiReserveBytes);
+// eventBytes = message bytes + sizeof(int32) + sizeof(uint16) (9 for a 3-byte message). `free` = C − used bytes;
+// `open` = number of (channel, pitch) whose Note-On was written and whose Note-Off was not yet written (bitset
+// `outputOpen_`, 2048 bits, persists across host blocks; reset by prepareToPlay together with the core flush).
+// Admission rules (D-30, D-45), all writes keep the invariant  free ≥ open · 9:
+//   core Note-Off for an open key      : always written (invariant ⇒ room); open −= 1. Never refused.
+//   core Note-Off for a non-open key   : suppressed (its Note-On was refused earlier, nothing sounds); not a loss.
+//   core Note-On                       : written iff free − 9 ≥ noteOffReserveBytes (18 432); open += 1. Since
+//                                        open ≤ 2048 = maximumSoundingVoices, the invariant holds after it.
+//   raw release class (CC64 < 64,
+//     CC120, CC123)                    : written iff free − 9 ≥ open · 9.
+//   raw other (all other non-note msgs,
+//     SysEx incl.)                     : written iff free − eventBytes ≥ noteOffReserveBytes + rawReleaseReserveBytes.
+// Refused events are counted per class (droppedOutputEventsTotal) and jassert in debug builds.
 class OutputMidiWriter {
 public:
-    explicit OutputMidiWriter(juce::MidiBuffer& target) noexcept;                               // [RT] target cleared
-    bool appendRaw(const juce::MidiMessageMetadata&) noexcept;                                    // [RT] original offset
+    OutputMidiWriter(juce::MidiBuffer& scratch, std::bitset<sequencing::constants::capacity::maximumSoundingVoices>& outputOpen) noexcept; // [RT]
+    void beginBlock() noexcept;                                                                  // [RT] scratch.clear() (keeps storage)
+    bool appendRaw(const juce::MidiMessageMetadata&, int sampleOffset) noexcept;                 // [RT]
     void appendCoreEvents(std::span<const sequencing::MidiEvent>, int offsetShift) noexcept;     // [RT]
     [[nodiscard]] std::uint32_t droppedEventCount() const noexcept;
-    // (maximumSoundingVoices + 3 * channelCount) * (3 + sizeof(int32) + sizeof(uint16)) = 2096 * 9 bytes
-    [[nodiscard]] static constexpr int releaseHeadroomBytes() noexcept;
+};
+
+// Zero-sample deferral store (D-53). Fixed capacity, never allocates, cumulative across consecutive zero-sample host
+// blocks; emptied only by `drainInto` at the next non-empty host block. Entries keep input order. Release-class events
+// (Note-Off, Note-On v=0, CC64 < 64, CC120, CC123) store their 3 bytes inline (no arena use); other events use the
+// arena. Insert rules:
+//   release event r with identity id (Note-Off: channel+pitch; CC64/CC120/CC123: channel+controller): any earlier
+//     deferred release event with the same id is removed (subsumed: all deferred events are delivered at offset 0 of
+//     one block, where the final state of id is "released" either way), then r is appended. Hence at most
+//     2096 = 2048 + 3·16 release entries exist. If the store is full, the oldest non-release entry is evicted (one
+//     always exists because 2096 < deferredEventCapacity = 8192) and counted. Release events are never dropped.
+//   non-release event: appended iff an entry and its arena bytes are free; otherwise the new event is refused and
+//     counted (earliest events are kept). Removed/evicted entries are tombstones; compaction is in place (O(entries)).
+class DeferredInputStore {
+public:
+    void insert(const juce::MidiMessageMetadata&) noexcept;                                      // [RT]
+    [[nodiscard]] bool empty() const noexcept;
+    template <typename Visitor> void forEach(Visitor&&) const noexcept;                         // [RT] input order, offset 0
+    void clear() noexcept;                                                                       // [RT]
+    [[nodiscard]] std::uint32_t droppedEventCount() const noexcept;                              // evicted + refused
+private:
+    struct Entry { std::uint32_t arenaOffset; std::uint16_t size; std::uint8_t inlineBytes[3]; std::uint8_t flags; };
+    std::array<Entry, sequencing::constants::capacity::deferredEventCapacity> entries_{};
+    std::array<std::uint8_t, sequencing::constants::capacity::deferredArenaBytes> arena_{};
 };
 }
 
@@ -1384,8 +1430,8 @@ namespace phu::plugin {
 class SequentialAudioProcessor final : public juce::AudioProcessor, private juce::Timer {
 public:
     SequentialAudioProcessor();               // BusesProperties() with no buses; MIDI in/out via JucePlugin_* flags
-    void prepareToPlay(double sampleRate, int maximumBlockSize) override;  // core.reset() (D-44); outputMidi_[0..1] and
-                                                                           // deferredInput_ ensureSize(outputMidiReserveBytes) (D-45)
+    void prepareToPlay(double sampleRate, int maximumBlockSize) override;  // core.reset() (D-44); outputOpen_.reset();
+                                                                           // outputScratch_.ensureSize(outputMidiReserveBytes) (D-45)
     void releaseResources() override {}
     void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;           // [RT] bypassed = bypass param
     void processBlockBypassed(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;   // [RT] same path, bypassed = true
@@ -1420,8 +1466,10 @@ private:
     arpeggiator::SequencerCore core_;                        // audio thread only (after construction)
     sequencing::OutputEventBuffer coreOutput_{sequencing::constants::capacity::outputEventsPerBlock};
     std::array<sequencing::MidiEvent, sequencing::constants::capacity::inputEventsPerChunk> inputChunk_{}; // reused
-    std::array<juce::MidiBuffer, 2> outputMidi_;             // D-45: pre-reserved in prepareToPlay, swapped with the host buffer
-    juce::MidiBuffer deferredInput_;                         // D-53: events of a zero-sample host block, pre-reserved
+    juce::MidiBuffer outputScratch_;                         // D-45: reserved in prepareToPlay, never swapped, never grown on audio
+    std::bitset<sequencing::constants::capacity::maximumSoundingVoices> outputOpen_; // D-45: written Note-On without Note-Off
+    DeferredInputStore deferredInput_;                       // D-53: cumulative events of zero-sample host blocks (in-object)
+    std::uint32_t hostOutputGrowthCount_ = 0;                // D-54: audio-thread growths of the host buffer (deviation, A-43)
     sequencing::TripleBuffer<arpeggiator::PlaybackStatus> playbackStatus_;
     sequencing::TripleBuffer<arpeggiator::StepDiscardState> stepDiscards_;  // D-32: audio -> processor timer
     // D-52: complete versioned state (parameters + patterns) from setStateInformation / preset load -> audio.
@@ -1430,7 +1478,9 @@ private:
     sequencing::TripleBuffer<PendingState> pendingState_;
     std::mutex stateMutex_;                                  // [non-audio] serializes state producers (never audio)
     std::uint64_t stateGeneration_ = 0;                      // guarded by stateMutex_
-    std::atomic<std::uint64_t> parametersSyncedGeneration_{0}; // message thread: APVTS now reflects generation g
+    std::atomic<std::uint64_t> latestStateGeneration_{0};    // = stateGeneration_ after each publish (read by callAsync callbacks)
+    std::atomic<std::uint64_t> parametersSyncedGeneration_{0}; // APVTS reflects generation g; advanced only by CAS-max (D-52)
+    std::uint64_t apvtsAppliedGeneration_ = 0;               // message thread only: last generation written into APVTS
     std::uint64_t audioStateGeneration_ = 0;                 // audio only: last applied PendingState generation
     arpeggiator::SequencerConfiguration stateParameters_{};  // audio only: used while APVTS lags (D-52)
     std::uint32_t droppedOutputEventsTotal_ = 0;
@@ -1440,14 +1490,23 @@ private:
 
 `processInternal` (audio thread), per host block (`n = numSamples`):
 
-0. If `n == 0` (D-53): no core call. If `midi` holds events, they are moved into `deferredInput_` (sample 0, input order) with the `OutputMidiWriter` capacity rule (release class first priority; refused events counted); `midi.clear()`. Nothing is emitted; all core state (pending Note-Offs, transitions, flushes) stays pending.
+0. If `n == 0` (D-53): no core call and the writer/scratch is not touched (no target is cleared). Every event of `midi` is inserted, in input order, into `deferredInput_` (`DeferredInputStore` rules: cumulative across consecutive zero-sample blocks, release-class events never dropped, evictions/refusals of non-release events counted); then `midi.clear()` (keeps storage, no allocation). Nothing is emitted; all core state (pending Note-Offs, transitions, flushes) stays pending.
 1. **State and parameters**: if `pendingState_.update()` and its `generation > audioStateGeneration_`: `audioStateGeneration_ = generation`, `stateParameters_ = parameters`, `core_.setPatterns(patterns)` (D-52). `cfg = (parametersSyncedGeneration_.load(acquire) < audioStateGeneration_) ? stateParameters_ : buildConfiguration(parameterReader_.read())` — the loaded parameters and patterns become active in the **same** block and stay active until APVTS has caught up. Then, if `patternStore_.audioSide().update()` → `core_.setPatterns(read())` (older document revisions are ignored by the core).
-2. `transport = readHostTransport(getPlayHead())`; `out = outputMidi_[i]` where `i` = the buffer with the larger `data.getNumAllocated()`; `OutputMidiWriter writer(out)`. **Pass 1 (raw, D-31)**: iterate `deferredInput_` then `midi`; every `rawOnly`/`coreAndRaw` event → `writer.appendRaw` at its original offset (deferred ones at 0). Non-note events are never filtered by Thru/Consume/bypass and never enter a core queue.
+2. `transport = readHostTransport(getPlayHead())`; `OutputMidiWriter writer(outputScratch_, outputOpen_)`; `writer.beginBlock()`. The host buffer `midi` is only **read** in steps 2–4. **Pass 1 (raw, D-31)**: iterate `deferredInput_` (offset 0) then `midi`; every `rawOnly`/`coreAndRaw` event → `writer.appendRaw` at its original offset. Non-note events are never filtered by Thru/Consume/bypass and never enter a core queue.
 3. **Pass 2 (chunks, D-51)**: `ChunkedInputReader` over `deferredInput_` + `midi` (core-routed events only, offsets clamped to `[0, n−1]`). Chunk rules: a chunk `[a, b)` is cut only between complete sample-offset groups, so every event offset of the chunk lies in `[a, b)`; `b − a ≤ samplesPerChunk`; ≤ `inputEventsPerChunk` events; the last chunk ends at `n` (a chunk may have no events). If one offset group at `s` alone exceeds `inputEventsPerChunk`: the preceding chunk ends at `s`; the group is split, in input order, into pieces of ≤ `inputEventsPerChunk` events; every piece but the last is a core call starting at `s` with `moreInputAtSameOffset = true`; the last piece starts the regular chunk `[s, b)`. Nothing is dropped and there is no per-host-block event ceiling.
 4. Per core call: `input.transport.playheadBeat += a / samplesPerBeat`, offsets relative to `a`; `result = core_.processBlock(input, cfg, coreOutput_)`; `writer.appendCoreEvents(coreOutput_.events(), a)` (drained after every call); if `result.discardStateChanged` → remember to publish.
-5. `deferredInput_.clear()`; `midi.swapWith(out)` (O(1), no allocation; `out` now holds the host's previous storage and is cleared at its next use). `playbackStatus_.write(core_.playbackStatus())` (with `droppedOutputEventsTotal_ += writer.droppedEventCount()`); if a discard changed: `stepDiscards_.write(core_.stepDiscardState())`.
+5. **Copy to host (D-45, D-54)**: `needed = outputScratch_.data.size()`; `midi.clear()` (keeps storage). If `midi.data.getNumAllocated() < needed` → growth path: `midi.ensureSize(outputScratch_.data.getNumAllocated())`, `++hostOutputGrowthCount_` (the only audio-thread allocation of the plugin; known deviation from §17, A-43). Then `midi.addEvents(outputScratch_, 0, -1, 0)` — implemented as the byte-identical append `midi.data.addArray(outputScratch_.data)` (scratch is already sorted and well-formed; avoids `addEvent`'s per-event insertion search; within capacity it does not allocate). `deferredInput_.clear()`. `playbackStatus_.write(core_.playbackStatus())` (with `droppedOutputEventsTotal_ += writer.droppedEventCount() + deferredInput_.droppedEventCount()` and `hostOutputGrowthCount_`); if a discard changed: `stepDiscards_.write(core_.stepDiscardState())`.
 
-Output buffer (D-45): the host buffer is never grown. JUCE caveat: `swapWith` exchanges storage, so after a swap the processor holds the host's former storage, whose capacity it does not control. With two processor-owned buffers and "use the one with the larger allocation", wrappers that reuse one `MidiBuffer` object (all JUCE wrappers) ping-pong our two reserved storages and the host's storage is never written; if a host hands a different buffer every block, the processor may end up holding smaller host storage until the next `prepareToPlay` re-reserves both (`ensureSize`, message thread, audio stopped — never on the audio thread). Overflow policy: exactly the `OutputMidiWriter` rule — release-class events use the reserved headroom (`releaseHeadroomBytes`, 2096 events), other events are refused once only the headroom is left; refused events are counted in `PlaybackStatus::droppedOutputEventsTotal` and `jassert` in debug builds. With 1 MiB a host block can carry ≈ 114 k three-byte events before any refusal; neither the core nor the adapter allocates on the audio thread.
+Output buffer (D-45, D-54). No `swapWith`: the processor keeps exactly one output store, `outputScratch_`, reserved with `ensureSize(outputMidiReserveBytes)` in `prepareToPlay` (message thread) and never exchanged, so its capacity cannot erode. The host buffer is a host-owned `juce::MidiBuffer` whose storage is a `juce::Array<uint8>`; the processor cannot reach it before the first `processBlock`, and any growth of it allocates. The only zero-allocation guarantee available is therefore "the merged output fits in the host buffer's existing storage". Policy when it does not: grow the host buffer once, directly to the full scratch capacity, on the audio thread, and count it. Rationale: truncating instead could drop Note-Offs (stuck notes, violating §9.3), which is worse than one allocation; JUCE plugin wrappers reuse one `MidiBuffer` object per instance and `clear()` keeps its storage, so in practice the growth happens at most once per host buffer object (typically in the first dense block) and never again; a host that hands a fresh small buffer every block would grow every such block — visible in `PlaybackStatus::hostOutputGrowthCount`. Tagged as a known deviation from §17, raised for the owner as A-43; the RT test asserts 0 allocations once the host buffer has the reserved capacity and exactly 1 for a first dense block into a small buffer.
+
+What can and cannot be dropped (C = 1 048 576 scratch bytes, 9 bytes per 3-byte event; `OutputMidiWriter` rules):
+- Core input (note/CC64): never dropped (D-51 chunking, no per-host-block ceiling).
+- Core output buffer: never refuses anything (§5.2 bound 13 376 ≤ 14 336 general slots; Note-Offs own 2048 reserved slots, M06).
+- Generated Note-Offs (lane and pass-through, incl. stop/bypass/flush releases) in the host output: never dropped. Invariant `free ≥ open·9`, `open ≤ 2048`, worst case 2048·9 = 18 432 bytes (`noteOffReserveBytes`) that raw events and Note-Ons can never consume.
+- Raw release-class input (CC64 < 64, CC120, CC123): written while `free − 9 ≥ open·9`, i.e. at least (C − 18 432)/9 = 114 460 three-byte events per host block are accepted; beyond that (or fewer if large SysEx precede) they **can** be dropped and are counted — A-44.
+- Raw other events and core Note-Ons: written while `free − bytes ≥ 18 432 + 432`, i.e. ≥ (C − 18 864)/9 = 114 412 three-byte events per host block; beyond that they **can** be dropped and are counted. A refused Note-On marks nothing open, so its later core Note-Off is suppressed (no orphan, no stuck note), but the core still counts that voice toward its limits until it ends — A-44.
+- Deferred input of zero-sample blocks: release-class events never dropped; non-release events can be evicted/refused beyond 8192 entries or 65 536 arena bytes, counted (D-53).
+- Copy to host: never drops (growth path instead, D-54).
 
 Processor timer (30 Hz, message thread): `if (stepDiscards_.update()) patternStore_.applyDiscardState(stepDiscards_.read())` (D-32); playback status is consumed by the editor (`pollPlaybackStatus`).
 
@@ -1568,7 +1627,7 @@ Rules:
 - Attribute names = parameter suffixes (§6.2); choice values = registry `persistenceKey` (base timing: its name, e.g. `1/16`); booleans `0/1`; ints decimal; color `#RRGGBB`. `<Steps>` has one CSV attribute per velocity mode with `usesStepValues` (named by `persistenceKey`) plus `on`; always 64 values.
 - `bypass` is never written (D-28). Lane color is state only, not a parameter (§12).
 - **Load** (`StateSerializer::load`): parse → root tag/`formatVersion` attribute missing or XML unparsable → `rejectedCorrupt`; `formatVersion > current` → `rejectedNewerVersion`; both fall back to the §20 default state (§13) and are reported (no exception escapes). `formatVersion < current` → apply the migration chain one version at a time → `migrated`. Then read every known field: unknown attributes/children ignored; missing fields → §20 default; unparsable or out-of-range values → clamped (numeric) or default (keys) → `loadedWithClamping`. CSV with fewer than 64 values → remaining defaults; more → ignored. `applied` is re-parsed; invalid → empty grid. Then I-1 is enforced against the loaded effective step count.
-- **Apply** (D-52, atomic): `setStateInformation` / preset load may run on the message thread or another non-audio host thread. It parses into one `PluginStateData`, then under `stateMutex_`: `patterns = patternStore_.replaceDocument(document)`; `generation = ++stateGeneration_`; `pendingState_.write({generation, parameters, patterns})` — one complete versioned snapshot (parameters + patterns) for the audio thread, which adopts both together at the start of its next host block (§6.1 step 1; no reset; §11 timing applies) and uses the snapshot's parameters until APVTS has caught up. APVTS and UI are updated separately: `juce::MessageManager::callAsync` (or directly when already on the message thread) runs `param->setValueNotifyingHost(param->convertTo0to1(value))` for all parameters, then `parametersSyncedGeneration_.store(generation, release)`. A later host automation value therefore wins only after that sync, never by mixing old and new state within one block. No claim of "any thread" safety is made beyond this: `stateMutex_` serializes concurrent producers, `PatternStore` has its own mutex, and the audio thread only reads triple buffers. `getStateInformation` reads `APVTS::copyState()` (JUCE: thread-safe) and `PatternStore::copyDocument()` (mutex).
+- **Apply** (D-52, atomic): `setStateInformation` / preset load may run on the message thread or another non-audio host thread. It parses into one `PluginStateData`, then under `stateMutex_`: `patterns = patternStore_.replaceDocument(document)`; `generation = ++stateGeneration_`; `latestStateGeneration_.store(generation, release)`; `pendingState_.write({generation, parameters, patterns})` — one complete versioned snapshot (parameters + patterns) for the audio thread, which adopts both together at the start of its next host block (§6.1 step 1; no reset; §11 timing applies) and uses the snapshot's parameters until APVTS has caught up. APVTS and UI are updated separately by `syncParametersToApvts(generation, parameters)`, run on the message thread (via `juce::MessageManager::callAsync`, or directly when already on the message thread). JUCE does not guarantee that callbacks posted from different threads run in posting order, so every callback carries its generation `g` and is generation-guarded: (1) if `g < latestStateGeneration_.load(acquire)` or `g <= apvtsAppliedGeneration_` → return immediately (superseded; the newer callback will sync); (2) otherwise run `param->setValueNotifyingHost(param->convertTo0to1(value))` for all parameters, set `apvtsAppliedGeneration_ = g`; (3) advance `parametersSyncedGeneration_` monotonically by CAS-max (`cur = load(); while (cur < g && !compare_exchange_weak(cur, g, release, relaxed)) {}`), so it can never move backwards. A stale callback therefore can neither overwrite newer APVTS values nor lower the synced generation. A later host automation value wins only after that sync, never by mixing old and new state within one block. No claim of "any thread" safety is made beyond this: `stateMutex_` serializes concurrent producers, `PatternStore` has its own mutex, and the audio thread only reads triple buffers. `getStateInformation` reads `APVTS::copyState()` (JUCE: thread-safe) and `PatternStore::copyDocument()` (mutex).
 
 ```cpp
 namespace phu::plugin {
@@ -1697,7 +1756,7 @@ Embedded via the conditional `SequentialFactoryPresets` binary-data target of §
 
 | Thread | Owns / may touch | Must not touch |
 |---|---|---|
-| **Audio** (`processBlock`) | `SequencerCore` (exclusive after `prepareToPlay`), `coreOutput_`, `inputChunk_`, `outputMidi_`, `deferredInput_`, consumer side of `PatternStore::audioSide()` and `pendingState_`, producer side of `playbackStatus_` and `stepDiscards_`, relaxed loads of APVTS raw atomics, acquire load of `parametersSyncedGeneration_` | `PatternStore` mutex/document, `stateMutex_`, `PresetManager`, any `juce::ValueTree`, editor |
+| **Audio** (`processBlock`) | `SequencerCore` (exclusive after `prepareToPlay`), `coreOutput_`, `inputChunk_`, `outputScratch_`, `outputOpen_`, `deferredInput_`, consumer side of `PatternStore::audioSide()` and `pendingState_`, producer side of `playbackStatus_` and `stepDiscards_`, relaxed loads of APVTS raw atomics, acquire load of `parametersSyncedGeneration_` | `PatternStore` mutex/document, `stateMutex_`, `PresetManager`, any `juce::ValueTree`, editor |
 | **Message** (UI, timers) | Editor, `PatternStore` mutators (mutex), `PresetManager`, `setStateInformation`/`getStateInformation` when the host calls them there, APVTS `setValueNotifyingHost` for state loads (D-52), processor `Timer` (consumer of `stepDiscards_`), consumer side of `playbackStatus_` | `SequencerCore`, triple-buffer consumer side of patterns / pending state |
 | **Host other threads** (some hosts call get/setStateInformation off the message thread) | only the D-52 path: parse, `PatternStore` (its mutex), producer side of `pendingState_` under `stateMutex_`, `MessageManager::callAsync` for APVTS/UI; `getStateInformation`: `APVTS::copyState()` + `PatternStore::copyDocument()` | APVTS parameter setters, editor, `SequencerCore` |
 
@@ -1712,20 +1771,24 @@ Embedded via the conditional `SequentialFactoryPresets` binary-data target of §
 | Audio → editor: playback | `TripleBuffer<PlaybackStatus>`; producer audio, consumer editor timer | lane step indices, running, latch, transport, drops | ≤ 1/30 s |
 | Audio → message: step-tail discards (D-32) | `TripleBuffer<StepDiscardState>`; producer audio (written when `BlockResult::discardStateChanged`), consumer processor timer → `PatternStore::applyDiscardState` | per lane: `discardRevision`, `discardedAtRevision[64]` | ≤ 1/30 s; until acknowledged by a snapshot the core masks the slots itself |
 | State load → audio: complete state (D-52) | `TripleBuffer<PendingState>`; producer `setStateInformation`/preset load under `stateMutex_`; consumer audio at host-block start | `{generation, SequencerConfiguration, PatternSnapshot}` | next block, parameters and patterns together |
+| State load → message: APVTS sync (D-52) | `callAsync` callbacks carrying generation `g`; stale `g` returns early; `parametersSyncedGeneration_` advanced by CAS-max, read by audio (acquire) | parameter values of generation `g` | message-thread latency; audio uses snapshot parameters meanwhile |
 
 No lock-free *queue* is needed: all audio-visible data is "latest value" state; the discard state is cumulative and revisioned, so only the latest value matters.
 
-### 7.3 Preallocated structures (no allocation on the audio thread)
+### 7.3 Preallocated structures (no allocation on the audio thread; sole exception: host output growth, D-54/A-43)
 
 | Structure | Owner | Capacity | When allocated |
 |---|---|---|---|
-| `OutputEventBuffer` | processor | `outputEventsPerBlock` = 16384 events | constructor |
+| `OutputEventBuffer` | processor | `outputEventsPerBlock` = 16384 events, of which `noteOffReserveEvents` = 2048 usable by Note-Offs only (D-30) | constructor |
 | `inputChunk_` (fixed array, reused per chunk) | processor | `inputEventsPerChunk` = 4096 events; no per-host-block limit (D-51) | in-object |
 | `VoiceRegistry` slots + scheduled-end heap | core (by value) | 2048 = 16 ch × 128 pitches (max possible simultaneous voices) | in-object |
 | Held notes, pass-through tables | core | 16 × 128 | in-object |
 | Lanes, grids, step data | core | 8 lanes × 64 steps | in-object |
 | `TripleBuffer<PatternSnapshot>`, `TripleBuffer<PlaybackStatus>`, `TripleBuffer<StepDiscardState>`, `TripleBuffer<PendingState>` | `PatternStore`, processor | 3 slots | in-object |
-| `outputMidi_[0..1]`, `deferredInput_` (`juce::MidiBuffer`) | processor | `outputMidiReserveBytes` = 1 MiB each | `ensureSize` in `prepareToPlay` (message thread, D-45); host buffer never grown, only `swapWith` |
+| `outputScratch_` (`juce::MidiBuffer`) | processor | `outputMidiReserveBytes` = 1 MiB, of which `noteOffReserveBytes` = 18 432 for core Note-Offs and `rawReleaseReserveBytes` = 432 for raw release events (D-45) | `ensureSize` in `prepareToPlay` (message thread); never swapped or grown on the audio thread |
+| `outputOpen_` (bitset) | processor | 2048 bits | in-object |
+| `deferredInput_` (`DeferredInputStore`) | processor | `deferredEventCapacity` = 8192 entries + `deferredArenaBytes` = 64 KiB (D-53) | in-object |
+| Host output `juce::MidiBuffer` | host | host's existing storage | **not** preallocatable by the plugin; grown once on the audio thread to the scratch capacity only if too small — known deviation from §17 (D-54, A-43) |
 
 `SequencerCore` is a member of the processor (≈ 140 KB; the processor is heap-allocated by the host wrapper, so no stack concern). Unit test `[REQ-17-…][rt]` wraps `processBlock` with `tests/support/AllocationGuard` (counts global `operator new` calls in scope; must stay 0) over scenario runs covering every path (start/stop/locate/bypass/max events).
 
@@ -1895,7 +1958,7 @@ All decisions are binding for implementation; those marked † resolve a spec am
 | D-27 † | Bypass: held-note tracking and transport anchoring continue during bypass; raw notes held at bypass exit are adopted as pass-through voices (no new output) so their later Note-Offs pass | §21 |
 | D-28 | Host bypass is the JUCE bypass parameter `bypass` plus `processBlockBypassed`; not stored in state/presets | §21, §13 |
 | D-29 † | `startVoice` emits retrigger Note-Off, then voice-limit eviction Note-Off, then Note-On | §9.1, §9.4 |
-| D-30 | Capacities: core input 4096 note/CC64 events per core call (adapter streams chunks, D-51; no per-host-block ceiling, input never dropped); core output 16384 events per call (provably not exceeded, §5.2 bound); in the host output buffer Note-Ons/raw events are refused when the remaining space would not hold the release headroom; release-class events are never refused while capacity remains; drops counted | §17, §9.3 |
+| D-30 | Capacities: core input 4096 note/CC64 events per core call (adapter streams chunks, D-51; no per-host-block ceiling, input never dropped); core output 16384 events per call partitioned into 14 336 general slots and 2048 Note-Off-only slots (Note-Ons admitted only while 2048 slots stay free; §5.2 bound 13 376 ⇒ nothing refused); host output partition and residual drop cases per D-45 | §17, §9.3 |
 | D-31 | Non-note events (other CCs, pitch bend, aftertouch, program change, SysEx, …) never enter the core: the adapter copies them byte-for-byte from the host input to the output at their original offsets (before core output at equal offsets). Thru/Consume apply to notes only; CC64 is additionally given to the core for sustain | §3.3 "always passed through unchanged" |
 | D-32 | Pattern data: message-thread `PatternDocument` in `PatternStore` (mutex) → `TripleBuffer` → core copy, revisioned (`documentRevision`, per-slot `stepEditRevision`). On a committed step-count decrease the core records `discardedAtRevision` for the tail and masks those slots as defaults at read time until a snapshot acknowledges the lane's `discardRevision`; reported via `TripleBuffer<StepDiscardState>`; `PatternDocument::applyDiscardState` resets only slots not edited after the discard (invariant I-1) | §5.2, §5.4, §17 |
 | D-33 † | Follow Channel default is 1 | §20 silent |
@@ -1910,15 +1973,16 @@ All decisions are binding for implementation; those marked † resolve a spec am
 | D-42 | phu-audio-lib (template dependency) is not used | no audio path |
 | D-43 | Two test targets: `SequentialCoreTests` (no JUCE) and `SequentialAdapterTests`; allocation guard for RT tests | §18, §17 |
 | D-44 † | After `prepareToPlay`/reset the first block releases all previously sounding voices at offset 0 | §9.3 |
-| D-45 | Output: processor-owned `juce::MidiBuffer`s pre-reserved (`outputMidiReserveBytes`) in `prepareToPlay`, filled in `processBlock`, then `swapWith` the host buffer; no allocation on the audio thread; overflow policy = `OutputMidiWriter` (release headroom). Swapping hands the host's storage to the processor, so `prepareToPlay` re-reserves | §17 |
+| D-45 | Output: one processor-owned scratch `juce::MidiBuffer` reserved (`outputMidiReserveBytes`) in `prepareToPlay`, never swapped; merged output (raw + core) is written into it by `OutputMidiWriter` with a fixed byte partition: `noteOffReserveBytes` (2048·9) only for core Note-Offs, `rawReleaseReserveBytes` (48·9) for raw release events; core Note-Offs are never dropped; raw events and Note-Ons beyond ≈ 114 k events per host block can be dropped (counted, A-44); then copied into the host buffer (D-54) | §17, §9.3 |
 | D-46 | Control strip shows Follow Index in Chord Follow mode and Follow Channel in Channel mode | UI sketches |
 | D-47 † | A rejected preset (newer/corrupt) falls back to the default state like host state | §13 |
 | D-48 † | Mute on (and latch on→off) releases the lane's sounding voices immediately at block start; mute keeps position running | §4.5, §4.6, §11 |
 | D-49 † | Input key tracking is one entry per (channel, pitch): a repeated Note-On on a held key replaces it (pass-through: retrigger via registry), the first release ends it | §3.1, §3.3 |
 | D-50 † | Swing is sampled once per step, when the lane schedules that step's effective start, i.e. while processing the preceding step start (or at `startTransport`/`resynchronize`); deterministic, block-size independent; a later swing change affects the step after next | §11 "swing … newly triggered notes", §5.1 |
 | D-51 | Adapter input chunking: core-routed events streamed from the host buffer into a reused 4096-event array; chunks cut only between complete sample-offset groups (offsets in `[chunkStart, chunkEnd)`, ≤ `samplesPerChunk` samples); an oversized same-offset group is split in input order into pieces processed at the same offset with `moreInputAtSameOffset` | §9.3, §17 |
-| D-52 | State application is atomic: `setStateInformation`/preset load builds one versioned `PendingState` {generation, parameters, patterns} handed to the audio thread via a triple buffer and applied at the next block start; APVTS/UI updates are marshalled to the message thread separately; the audio thread uses the snapshot parameters until APVTS has synced that generation | §13 |
-| D-53 † | `numSamples == 0`: no core call, no output, no state change; pending Note-Offs, flushes and transitions happen in the next non-empty block; host events in such a block are deferred to offset 0 of the next non-empty block | §17, §9.3 |
+| D-52 | State application is atomic: `setStateInformation`/preset load builds one versioned `PendingState` {generation, parameters, patterns} handed to the audio thread via a triple buffer and applied at the next block start; APVTS/UI updates are marshalled to the message thread separately; the audio thread uses the snapshot parameters until APVTS has synced that generation; APVTS sync callbacks are generation-guarded (stale ones return early) and `parametersSyncedGeneration_` only advances by CAS-max | §13 |
+| D-53 † | `numSamples == 0`: no core call, no output, no state change; pending Note-Offs, flushes and transitions happen in the next non-empty block; host events of consecutive zero-sample blocks accumulate in a fixed-capacity `DeferredInputStore` (nothing cleared until the next non-empty block) and are delivered at offset 0 of it; release-class events are never dropped (a newer release event subsumes an earlier one with the same identity; when full, the oldest non-release entry is evicted, counted) | §17, §9.3 |
+| D-54 | Host copy: `midi.clear(); midi.addEvents(scratch)` (byte append) after all host input was read. If the host buffer's existing storage is too small, it is grown once to the scratch capacity on the audio thread and counted (`hostOutputGrowthCount`) instead of truncating (which could drop Note-Offs). Known deviation from §17 "no allocation on the audio thread", owner decision pending (A-43) | §17, §9.3 |
 
 ### 10.1 Open points required by #2
 
@@ -1949,8 +2013,8 @@ All decisions are binding for implementation; those marked † resolve a spec am
   ```
 - Invariant checks run after every scenario: every Note-On has exactly one later Note-Off for the same (channel, pitch) by the end of a stop/bypass flush (§9.3); output offsets non-decreasing; `AllocationGuard` count 0 inside `processBlock`.
 - Tags: `[REQ-<spec section>-<n>]` from `docs/test-matrix.md` (#3) plus module tag `[M14]`.
-- Core scenario tests include: backward swing (examples of §3.3 M03, transport start at a swung step, loop restart, pending change between `e_k` and `g_k`), swing sampling time (D-50), revisioned discard vs concurrent edit (D-32), stop/discontinuity releasing pass-through voices (D-17), same-offset pieces (D-51), `numSamples == 0` (D-53).
-- `SequentialAdapterTests` (Catch2 + JUCE modules, no plugin wrapper): MIDI conversion (chunk cutting between offset groups, oversized same-offset group, > 16384 events per host block, raw non-note/SysEx copy and ordering, output overflow policy), atomic state application (D-52), parameter layout (IDs, ranges, defaults = §20), state round-trip/migration/fallback fixtures, factory presets load cleanly (skipped when `PHU_HAS_FACTORY_PRESETS=0`).
+- Core scenario tests include: backward swing (examples of §3.3 M03, transport start at an arbitrary PPQ (incl. one where a swung step would fall) yields an immediate unswung step 0 at the playhead with no preceding swung trigger (D-4, §4.3 of this doc rule 6, §5.2 step 4.2), loop restart, pending change between `e_k` and `g_k`), swing sampling time (D-50), revisioned discard vs concurrent edit (D-32), stop/discontinuity releasing pass-through voices (D-17), same-offset pieces (D-51; incl. a due voice end at offset 0 while an earlier lane start is suppressed), `numSamples == 0` (D-53), core output partition (Note-Ons refused only while 2048 Note-Off slots would not stay free, D-30).
+- `SequentialAdapterTests` (Catch2 + JUCE modules, no plugin wrapper): MIDI conversion (chunk cutting between offset groups, oversized same-offset group, > 16384 events per host block, raw non-note/SysEx copy and ordering, output overflow policy: generated Note-Offs never dropped when raw release input and raw/Note-On traffic fill the scratch, exact refusal thresholds 114 412 / 114 460, suppressed Note-Off after a refused Note-On; host copy: no `swapWith`, 0 allocations into a host buffer with sufficient storage, exactly 1 growth into a small one and 0 afterwards; consecutive zero-sample blocks: cumulative deferral, release subsumption, eviction of the oldest non-release entry, counts), atomic state application (D-52; out-of-order APVTS callbacks: a stale generation returns early, `parametersSyncedGeneration_` never decreases), parameter layout (IDs, ranges, defaults = §20), state round-trip/migration/fallback fixtures, factory presets load cleanly (skipped when `PHU_HAS_FACTORY_PRESETS=0`).
 - pluginval in CI (§15) for the built plugin.
 
 ---
@@ -1997,12 +2061,14 @@ Every gap, ambiguity or contradiction found in `spec/arp-spec.md` while designin
 | A-34 | §4.6, §9.3, §11 | Mute "takes effect immediately": does it cut sounding notes or let them finish? | Cut immediately (Note-Offs) — D-48 |
 | A-35 | §3.1, §3.3 | Repeated Note-On on an already held input key: how Note-Offs pair for pass-through. | One entry per key; first release ends it — D-49 |
 | A-36 | §5.4, §5.2 | Step-data "discard" when the effective step count decreases and increases again before a step start (fast automation); whether switching to a text grid with fewer entries discards; races with concurrent UI edits. | Discard happens only on committed decreases (also for source switches), in the core at commit; revisioned hand-off so an increase never restores discarded data and a later UI edit is never lost — D-32 |
-| A-37 | §3.3, §17 | SysEx and other non-channel events are not listed among non-note events; Thru/Consume wording covers notes only. | All non-note events pass unchanged at their original offsets, outside the core, never dropped for core capacity; Thru/Consume do not apply — D-31 |
-| A-38 | §17 | Behavior on event-capacity overflow is unspecified. | Input is never dropped (D-51); host-output overflow refuses Note-Ons/raw events first, release-class events use reserved headroom; drops counted — D-30, D-45 |
+| A-37 | §3.3, §17 | SysEx and other non-channel events are not listed among non-note events; Thru/Consume wording covers notes only. | All non-note events pass unchanged at their original offsets, outside the core (never subject to core capacity); Thru/Consume do not apply; extreme-volume host-output limits per A-44 — D-31 |
+| A-38 | §17 | Behavior on event-capacity overflow is unspecified. | Input to the core is never dropped (D-51); core output is partitioned so nothing is refused (D-30); host output partition keeps 2048 Note-Off slots so generated Note-Offs are never dropped; residual drops of raw/Note-On events listed in A-44; drops counted — D-30, D-45 |
 | A-39 | §14 | Editor default/min/max size and the minimum step width value are not given. (Open point of #2.) | D-36, D-37 |
 | A-40 | §14 | Display of a lane whose active Text Grid has no valid grid. | Placeholder "no grid", zero width — D-9, §6.5 |
 | A-41 | §11, §5.1 | "Swing changes affect newly triggered notes", but a backward shift needs the swing value before the step's nominal start. | Sampled when the preceding step start schedules the swung step — D-50 |
-| A-42 | §17 | Zero-sample host blocks (and events delivered in them) are unspecified. | Nothing emitted, state unchanged, events deferred to the next non-empty block — D-53 |
+| A-42 | §17 | Zero-sample host blocks (and events delivered in them) are unspecified. | Nothing emitted, state unchanged, events accumulated across consecutive zero-sample blocks and delivered at offset 0 of the next non-empty block; release-class events never dropped, non-release events beyond 8192 entries / 64 KiB evicted or refused (counted) — D-53 |
+| A-43 | §17 | §17 forbids allocation on the audio thread, but the host-owned output `juce::MidiBuffer` (a `juce::Array`) cannot be pre-sized by the plugin; its existing storage may be smaller than the output. | **Known deviation**: the host buffer is grown once, on the audio thread, to the scratch capacity when needed (in practice once per host buffer object), counted in `hostOutputGrowthCount`; the alternative (truncate, risking dropped Note-Offs) is rejected. Owner to confirm or choose truncation — D-54 |
+| A-44 | §17, §9.3 | Even with partitioned capacity, a host block with > ≈ 114 k output events cannot be fully delivered. | Generated Note-Offs are never dropped. Can be dropped (counted): raw release input beyond (2^20 − 18 432)/9 = 114 460 events; raw other events and Note-Ons beyond (2^20 − 18 864)/9 = 114 412 events (fewer with large SysEx); a dropped Note-On's Note-Off is suppressed but the core still counts the silent voice toward voice limits until it ends; deferred non-release events per A-42. Owner to confirm the thresholds — D-45 |
 
 ---
 
