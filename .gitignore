@@ -1,0 +1,26 @@
+# Build directories
+build/
+out/
+cmake-build-*/
+
+# Fetched by CMAKE
+JUCE/
+Catch2/
+
+# IDE files
+.vs/
+.vscode/
+*.user
+*.suo
+*.sln
+*.vcxproj*
+.idea/
+*.swp
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Plugin artifacts
+*.vst3
