@@ -9,13 +9,13 @@ using namespace phu::sequencing;
 TEST_CASE("NoteValues: subdivisionRegistry has straight, triplet, dotted with correct factors",
           "[M02][note-values][subdivision]") {
     REQUIRE(subdivisionRegistry.size() == 3);
-    CHECK(subdivisionRegistry[0].name == "Straight");
+    CHECK(static_cast<std::string>(subdivisionRegistry[0].name) == "Straight");
     CHECK(subdivisionRegistry[0].factor.numerator == 1);
     CHECK(subdivisionRegistry[0].factor.denominator == 1);
-    CHECK(subdivisionRegistry[1].name == "Triplet");
+    CHECK(static_cast<std::string>(subdivisionRegistry[1].name) == "Triplet");
     CHECK(subdivisionRegistry[1].factor.numerator == 2);
     CHECK(subdivisionRegistry[1].factor.denominator == 3);
-    CHECK(subdivisionRegistry[2].name == "Dotted");
+    CHECK(static_cast<std::string>(subdivisionRegistry[2].name) == "Dotted");
     CHECK(subdivisionRegistry[2].factor.numerator == 3);
     CHECK(subdivisionRegistry[2].factor.denominator == 2);
 }
@@ -25,10 +25,10 @@ TEST_CASE("NoteValues: baseTimingRegistry lists the 6 base timings in declared o
     const auto registry = baseTimingRegistry();
     REQUIRE(registry.size() == 6);
     const std::array<int, 6> expectedDenominators{32, 16, 8, 4, 2, 1};
-    const std::array<std::string_view, 6> expectedNames{"1/32", "1/16", "1/8", "1/4", "1/2", "1/1"};
+    const std::array<std::string, 6> expectedNames{"1/32", "1/16", "1/8", "1/4", "1/2", "1/1"};
     for (std::size_t i = 0; i < registry.size(); ++i) {
         CHECK(registry[i].denominator == expectedDenominators[i]);
-        CHECK(registry[i].name == expectedNames[i]);
+        CHECK(static_cast<std::string>(registry[i].name) == expectedNames[i]);
     }
 }
 
