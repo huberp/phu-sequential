@@ -60,8 +60,8 @@ jobs:
 
       - name: Run Tests
         run: |
-          PRESET="macos-${{ inputs.arch == 'x64' && 'x64' || 'arm64' }}-release-build"
-          cmake --build --preset "$PRESET" --target test
+          BUILD_DIR="build/macos-${{ inputs.arch == 'x64' && 'x64' || 'arm64' }}-release"
+          cd "$BUILD_DIR" && ctest --output-on-failure
 
       - name: Download pluginval
         if: ${{ inputs.run-pluginval }}
