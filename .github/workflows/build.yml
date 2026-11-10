@@ -1,0 +1,37 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    uses: ./.github/workflows/build-windows-vst3.yml
+    with:
+      arch: x64
+      run-pluginval: true
+
+  build-linux-x64:
+    uses: ./.github/workflows/build-linux.yml
+    with:
+      arch: x64
+
+  build-linux-arm64:
+    uses: ./.github/workflows/build-linux.yml
+    with:
+      arch: arm64
+
+  build-macos-arm64:
+    uses: ./.github/workflows/build-macos.yml
+    with:
+      arch: arm64
+      run-pluginval: true
+
+  build-macos-x64:
+    uses: ./.github/workflows/build-macos.yml
+    with:
+      arch: x64
+      run-pluginval: true
