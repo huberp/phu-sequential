@@ -6,7 +6,13 @@ target_include_directories(SequentialCoreLib PUBLIC
 
 target_sources(SequentialCoreLib PRIVATE
     sequencing/Constants.h
-    sequencing/Constants.cpp
+    sequencing/MusicalTime.h
+    sequencing/NoteValues.h
+    sequencing/StepTiming.h
+    sequencing/StepTiming.cpp
+    sequencing/SampleConversion.h
+    arpeggiator/DisplayScale.h
+    arpeggiator/DisplayScale.cpp
 )
 
 set_target_properties(SequentialCoreLib PROPERTIES
