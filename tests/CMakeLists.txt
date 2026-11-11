@@ -7,6 +7,9 @@ add_executable(SequentialCoreTests
     core/SampleConversionTests.cpp
     core/DisplayScaleTests.cpp
     core/TextGridParserTests.cpp
+    core/MidiEventTests.cpp
+    core/HeldNoteTrackerTests.cpp
+    core/SourceSelectionTests.cpp
 )
 
 target_link_libraries(SequentialCoreTests PRIVATE
