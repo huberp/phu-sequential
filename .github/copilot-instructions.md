@@ -17,6 +17,7 @@
 - **Naming**: Use `camelCase` for functions, `PascalCase` for types, `snake_case` for variables, `UPPER_CASE` for constants
 - **Include Order**: Group includes by module (sequencing/, arpeggiator/, JUCE), with blank lines between groups
 - **No using namespace**: Never use `using namespace` in headers; use qualified names or `using` declarations in .cpp files only
+- **Headers**: Always include necessary headers explicitely. don't assume they are reliabliy included from other headers. assuming this might break. multi-platform build
 
 ### Type Safety & Modern C++
 - **Strong Types**: Prefer `std::int64_t`, `std::uint8_t` over `int`/`unsigned` for specific sizes
