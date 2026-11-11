@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 #include "sequencing/TextGridParser.h"
 #include "sequencing/NoteValues.h"
