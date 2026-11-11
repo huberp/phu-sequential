@@ -203,23 +203,23 @@ TEST_CASE("SourceSelection: inputModeRegistry has inputModeCount entries", "[M08
 TEST_CASE("SourceSelection: inputModeRegistry entries have names and persistence keys", "[M08]") {
     // All entries should have non-empty names and keys
     for (const auto& definition : inputModeRegistry) {
-        CHECK(!definition.name.empty());
-        CHECK(!definition.persistenceKey.empty());
+        CHECK(static_cast<std::string>(definition.name) != "");
+        CHECK(static_cast<std::string>(definition.persistenceKey) != "");
         CHECK(definition.select != nullptr);
     }
 }
 
 TEST_CASE("SourceSelection: chordFollow mode is at index 0", "[M08]") {
     const auto& definition = inputModeRegistry[static_cast<int>(InputMode::chordFollow)];
-    CHECK(definition.name == "Chord Follow");
-    CHECK(definition.persistenceKey == "chordFollow");
+    CHECK(static_cast<std::string>(definition.name) == "Chord Follow");
+    CHECK(static_cast<std::string>(definition.persistenceKey) == "chordFollow");
     CHECK(definition.select == &selectChordFollowSource);
 }
 
 TEST_CASE("SourceSelection: channel mode is at index 1", "[M08]") {
     const auto& definition = inputModeRegistry[static_cast<int>(InputMode::channel)];
-    CHECK(definition.name == "Channel");
-    CHECK(definition.persistenceKey == "channel");
+    CHECK(static_cast<std::string>(definition.name) == "Channel");
+    CHECK(static_cast<std::string>(definition.persistenceKey) == "channel");
     CHECK(definition.select == &selectChannelSource);
 }
 
