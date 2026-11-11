@@ -13,16 +13,16 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 
 | ID | § | Rule | Module | Scenario | Issue | Status |
 |---|---|---|---|---|---|---|
-| REQ-3.1-1 | 3.1 | Chord = held notes; Note-On adds, Note-Off removes | M07 | NOn 60, 64, 67; NOff 64 → chord {60,67} | #7 | todo |
-| REQ-3.1-2 | 3.1 | Note-On vel 0 = Note-Off | M07 | NOn(1,60,100); NOn(1,60,0) → chord empty | #7 | todo |
-| REQ-3.1-3 | 3.1 | Pitch at most once; repeat Note-On replaces | M07 | NOn 60 vel 50; NOn 60 vel 90 → size 1, vel 90 | #7 | todo |
-| REQ-3.1-4 | 3.1 | Pedal per channel: held after Note-Off while CC64 ≥ 64 | M07 | CC64=127 ch1; NOn/NOff 60 ch1 → still in chord; same on ch2 w/o pedal → gone | #7 | todo |
-| REQ-3.1-5 | 3.1 | Pedal off (<64) releases all unheld notes | M07 | continue REQ-3.1-4; CC64=63 → chord empty; keys still down stay | #7 | todo |
+| REQ-3.1-1 | 3.1 | Chord = held notes; Note-On adds, Note-Off removes | M07 | NOn 60, 64, 67; NOff 64 → chord {60,67} | #7 | done |
+| REQ-3.1-2 | 3.1 | Note-On vel 0 = Note-Off | M07 | NOn(1,60,100); NOn(1,60,0) → chord empty | #7 | done |
+| REQ-3.1-3 | 3.1 | Pitch at most once; repeat Note-On replaces | M07 | NOn 60 vel 50; NOn 60 vel 90 → size 1, vel 90 | #7 | done |
+| REQ-3.1-4 | 3.1 | Pedal per channel: held after Note-Off while CC64 ≥ 64 | M07 | CC64=127 ch1; NOn/NOff 60 ch1 → still in chord; same on ch2 w/o pedal → gone | #7 | done |
+| REQ-3.1-5 | 3.1 | Pedal off (<64) releases all unheld notes | M07 | continue REQ-3.1-4; CC64=63 → chord empty; keys still down stay | #7 | done |
 | REQ-3.1-6 | 3.1 | Pedal logic equal for channel-mode lanes | M07,M08 | L2 channel 3; pedal ch3 on; NOn/NOff 60 ch3 → L2 keeps playing until pedal off | #7 | todo |
-| REQ-3.1-7 | 3.1 | Threshold: 63 off, 64 on | M07 | CC64=63 → no hold; 64 → hold | #7 | todo |
-| REQ-3.2-1 | 3.2 | Chord-follow uses only chord input channel | M07,M08 | chord ch=2; NOn(1,60), NOn(2,64) → chord {64} | #7 | todo |
+| REQ-3.1-7 | 3.1 | Threshold: 63 off, 64 on | M07 | CC64=63 → no hold; 64 → hold | #7 | done |
+| REQ-3.2-1 | 3.2 | Chord-follow uses only chord input channel | M07,M08 | chord ch=2; NOn(1,60), NOn(2,64) → chord {64} | #7 | done |
 | REQ-3.2-2 | 3.2 | Chord input channel range 1–16, change takes effect | M07,M20 | change ch 1→5 mid-play; chord rebuilt from ch5 held notes | #7,#13 | todo |
-| REQ-3.2-3 | 3.2 | Channel mode independent per lane | M08 | L1 ch3, L2 ch5; NOn ch3, ch5 → each lane own note | #7 | todo |
+| REQ-3.2-3 | 3.2 | Channel mode independent per lane | M08 | L1 ch3, L2 ch5; NOn ch3, ch5 → each lane own note | #7 | done |
 | REQ-3.3-1 | 3.3 | Thru off: no input notes out; Thru on: all 16 ch passed | M16 | Thru off: NOn → no output. Thru on: NOn ch1..16 → 16 outputs | #11 | todo |
 | REQ-3.3-2 | 3.3 | Consume on: followed channels not passed, even Thru on | M16 | Thru on, Consume on, chord ch1, L2 ch3: NOn ch1,3 blocked; ch2 passes | #11 | todo |
 | REQ-3.3-3 | 3.3 | Consume off: followed channels pass if Thru on | M16 | same, Consume off → ch1,3 pass | #11 | todo |
@@ -33,7 +33,7 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 | REQ-3.3-8 | 3.3 | CC64 passed and interpreted | M16,M07 | CC64 ch1 → in output and hold active | #11 | todo |
 | REQ-3.3-9 | 3.3 | CC120/CC123 only passed, no internal reset | M16,M11 | lane sounding; CC123 in → passed, lane notes unaffected | #11 | todo |
 | REQ-3.3-10 | 3.3 | Thru, Consume automatable | M20 | layout contains params, in param list | #13 | todo |
-| REQ-3.4-1 | 3.4 | Sort ascending; idx 0 = lowest | M07,M08 | NOn 67,60,64 → idx0=60, idx1=64, idx2=67 | #7 | todo |
+| REQ-3.4-1 | 3.4 | Sort ascending; idx 0 = lowest | M07,M08 | NOn 67,60,64 → idx0=60, idx1=64, idx2=67 | #7 | done |
 
 ## §4 Lanes
 
@@ -56,10 +56,10 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 | REQ-4.2-7 | 4.2 | Source completely empty → immediate stop | M14 | chord {60}, idx 0 sounding; NOff 60 mid-step → Note-Off at that sample | #10 | todo |
 | REQ-4.2-8 | 4.2 | Idx drops out of chord by release → immediate stop | M14 | chord {60,64}, idx 1 sounding; NOff 64 → immediate Note-Off | #10 | todo |
 | REQ-4.2-9 | 4.2 | Follow idx range 0–15; out-of-range clamped | M12,M20 | 16 → 15; −1 → 0 | #10,#13 | todo |
-| REQ-4.3-1 | 4.3 | Channel mode follows most recent note on channel | M08 | NOn 60 ch3, NOn 64 ch3 → plays 64 | #7 | todo |
+| REQ-4.3-1 | 4.3 | Channel mode follows most recent note on channel | M08 | NOn 60 ch3, NOn 64 ch3 → plays 64 | #7 | done |
 | REQ-4.3-2 | 4.3 | No note stack: release of followed note stops lane even if older held | M08,M14 | NOn 60, NOn 64; NOff 64 → lane stops immediately, 60 not resumed | #7,#10 | todo |
-| REQ-4.3-3 | 4.3 | Silent before first note on channel | M08 | no notes → no output | #7 | todo |
-| REQ-4.3-4 | 4.3 | Release of older (non-followed) note has no effect | M08 | NOn 60, NOn 64; NOff 60 → still playing 64 | #7 | todo |
+| REQ-4.3-3 | 4.3 | Silent before first note on channel | M08 | no notes → no output | #7 | done |
+| REQ-4.3-4 | 4.3 | Release of older (non-followed) note has no effect | M08 | NOn 60, NOn 64; NOff 60 → still playing 64 | #7 | done |
 | REQ-4.4-1 | 4.4 | New note adopted at next step start | M14 | L1 idx 0 sounding 60 on step k; NOn 48 at step k+0.5 → step k keeps 60 until its end; step k+1 plays 48 | #10 | todo |
 | REQ-4.4-2 | 4.4 | Source release overrides quantization | M14 | see REQ-4.2-7 | #10 | todo |
 | REQ-4.5-1 | 4.5 | Position continues during silence | M13,M14 | chord empty for 2.0 beats; NOn at beat 2.1 → first note at next grid step (step 9 of 16) | #10 | todo |

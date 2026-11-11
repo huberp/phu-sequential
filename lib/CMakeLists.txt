@@ -13,6 +13,16 @@ target_sources(SequentialCoreLib PRIVATE
     sequencing/SampleConversion.h
     sequencing/TextGridParser.h
     sequencing/TextGridParser.cpp
+    sequencing/MidiEvent.h
+    sequencing/HeldNoteTracker.h
+    sequencing/HeldNoteTracker.cpp
+    sequencing/sources/SourceSelection.h
+    sequencing/sources/SourceSelection.cpp
+    sequencing/sources/ChordFollowSource.h
+    sequencing/sources/ChordFollowSource.cpp
+    sequencing/sources/ChannelSource.h
+    sequencing/sources/ChannelSource.cpp
+    sequencing/sources/InputModeRegistry.h
     arpeggiator/DisplayScale.h
     arpeggiator/DisplayScale.cpp
 )
