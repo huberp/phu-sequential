@@ -6,6 +6,7 @@ add_executable(SequentialCoreTests
     core/StepTimingTests.cpp
     core/SampleConversionTests.cpp
     core/DisplayScaleTests.cpp
+    core/TextGridParserTests.cpp
 )
 
 target_link_libraries(SequentialCoreTests PRIVATE

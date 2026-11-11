@@ -11,6 +11,8 @@ target_sources(SequentialCoreLib PRIVATE
     sequencing/StepTiming.h
     sequencing/StepTiming.cpp
     sequencing/SampleConversion.h
+    sequencing/TextGridParser.h
+    sequencing/TextGridParser.cpp
     arpeggiator/DisplayScale.h
     arpeggiator/DisplayScale.cpp
 )
