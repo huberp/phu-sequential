@@ -43,6 +43,8 @@ This file contains detailed guidance on:
 ### CI/CD
 
 - **Build Matrix**: All platforms (Windows x64, Linux x64/arm64, macOS x64/arm64)
+- **Platform Rule**: All code, including tests and scripts, must work on every platform in the build matrix. Use CMake-native or cross-platform mechanisms only; never depend on a specific interpreter path or platform-only tooling. Verify against `.github/workflows/`.
+- **Guard Hook**: `.github/hooks/catch2-string-view-guard.json` runs `cmake -P scripts/check_catch2_string_view.cmake` after every tool call (Catch2 string_view linker guard, cpp.instructions.md item 11)
 - **Test Execution**: Run all tests on every push and PR
 - **Validation**: Run pluginval on Windows and macOS builds
 - **Artifacts**: Upload build artifacts for debugging

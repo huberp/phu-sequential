@@ -23,6 +23,15 @@ target_sources(SequentialCoreLib PRIVATE
     sequencing/sources/ChannelSource.h
     sequencing/sources/ChannelSource.cpp
     sequencing/sources/InputModeRegistry.h
+    sequencing/velocity/VelocityMode.h
+    sequencing/velocity/IncomingVelocity.h
+    sequencing/velocity/ByStepVelocity.h
+    sequencing/velocity/DeltaByStepVelocity.h
+    sequencing/velocity/RelativeVelocity.h
+    sequencing/velocity/VelocityModeRegistry.h
+    sequencing/velocity/VelocityModeRegistry.cpp
+    sequencing/StepData.h
+    sequencing/StepData.cpp
     arpeggiator/DisplayScale.h
     arpeggiator/DisplayScale.cpp
 )
