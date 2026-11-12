@@ -63,6 +63,10 @@ jobs:
       - name: Build
         run: cmake --build ${{ env.BUILD_DIR }} --config Release
 
+      - name: Test
+        shell: pwsh
+        run: ctest --test-dir ${{ env.BUILD_DIR }} -C Release --output-on-failure
+
       - name: Download pluginval
         if: ${{ inputs.run-pluginval }}
         shell: pwsh
