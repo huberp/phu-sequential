@@ -29,7 +29,14 @@ set_target_properties(SequentialCoreTests PROPERTIES
 include(Catch)
 catch_discover_tests(SequentialCoreTests)
 
-# Catch2 string_view linker guard (cpp.instructions.md item 11): fails if any assertion stringifies a std::string_view.
-# Pure CMake script so it runs on every CI platform without a Python dependency.
-add_test(NAME Catch2StringViewGuard
-    COMMAND ${CMAKE_COMMAND} -P ${PROJECT_SOURCE_DIR}/scripts/check_catch2_string_view.cmake)
+# Catch2 string_view linker guard (cpp.instructions.md item 11): runs at configure time so it fails before any compile.
+# Not a CTest test: CTest reported "Not Run" for it on macOS runners.
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -P ${PROJECT_SOURCE_DIR}/scripts/check_catch2_string_view.cmake
+    RESULT_VARIABLE _catch2_guard_result
+    OUTPUT_VARIABLE _catch2_guard_output
+    ERROR_VARIABLE _catch2_guard_output
+)
+if(NOT _catch2_guard_result EQUAL 0)
+    message(FATAL_ERROR "${_catch2_guard_output}")
+endif()
