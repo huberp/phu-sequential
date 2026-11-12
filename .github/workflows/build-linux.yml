@@ -48,6 +48,9 @@ jobs:
       - name: Install Dependencies
         run: sudo bash scripts/install-linux-deps.sh
 
+      - name: Check Catch2 string_view usage
+        run: python3 scripts/check_catch2_string_view.py
+
       - name: Configure CMake
         run: cmake --preset linux-${{ inputs.arch }}-vst3-release
 

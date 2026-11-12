@@ -66,7 +66,8 @@ TEST_CASE("VelocityModes: relative mode at index 3 with correct properties", "[M
 TEST_CASE("VelocityModes: registry persistence keys are unique", "[M09]") {
     for (size_t i = 0; i < velocityModeRegistry.size(); ++i) {
         for (size_t j = i + 1; j < velocityModeRegistry.size(); ++j) {
-            CHECK(velocityModeRegistry[i].persistenceKey != velocityModeRegistry[j].persistenceKey);
+            CHECK(static_cast<std::string>(velocityModeRegistry[i].persistenceKey) !=
+                  static_cast<std::string>(velocityModeRegistry[j].persistenceKey));
         }
     }
 }
@@ -281,10 +282,14 @@ TEST_CASE("VelocityModes: all non-incoming modes usesStepValues is true", "[M09]
 }
 
 TEST_CASE("VelocityModes: registry order matches VelocityMode enum order", "[M09]") {
-    CHECK(velocityModeRegistry[0].persistenceKey == velocityModeRegistry[static_cast<int>(VelocityMode::incoming)].persistenceKey);
-    CHECK(velocityModeRegistry[1].persistenceKey == velocityModeRegistry[static_cast<int>(VelocityMode::byStep)].persistenceKey);
-    CHECK(velocityModeRegistry[2].persistenceKey == velocityModeRegistry[static_cast<int>(VelocityMode::deltaByStep)].persistenceKey);
-    CHECK(velocityModeRegistry[3].persistenceKey == velocityModeRegistry[static_cast<int>(VelocityMode::relative)].persistenceKey);
+    CHECK(static_cast<std::string>(velocityModeRegistry[0].persistenceKey) ==
+          static_cast<std::string>(velocityModeRegistry[static_cast<int>(VelocityMode::incoming)].persistenceKey));
+    CHECK(static_cast<std::string>(velocityModeRegistry[1].persistenceKey) ==
+          static_cast<std::string>(velocityModeRegistry[static_cast<int>(VelocityMode::byStep)].persistenceKey));
+    CHECK(static_cast<std::string>(velocityModeRegistry[2].persistenceKey) ==
+          static_cast<std::string>(velocityModeRegistry[static_cast<int>(VelocityMode::deltaByStep)].persistenceKey));
+    CHECK(static_cast<std::string>(velocityModeRegistry[3].persistenceKey) ==
+          static_cast<std::string>(velocityModeRegistry[static_cast<int>(VelocityMode::relative)].persistenceKey));
 }
 
 TEST_CASE("VelocityModes: byStep mode has default 100", "[M09]") {

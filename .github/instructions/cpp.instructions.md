@@ -133,7 +133,7 @@ applyTo: "**/*.cpp,**/*.h,**/*.hpp,**/*.cc,**/*.cxx"
 8. **Latch Behavior**: Clear latch memory on mute, transport stop, bypass enter (D-17, D-18)
 9. **Discard Revision**: Track discard revisions to prevent old step data from resurfacing (D-32)
 10. **JUCE Threads**: Never call JUCE code from audio thread; use async message posting
-11. **Catch2 string_view Linker Error**: When comparing `std::string_view` fields from library structures in Catch2 tests, explicitly cast to `std::string` to avoid LNK2019/LNK1120 linker errors on Windows. Catch2 v3's `StringMaker<std::string_view>` specialization may not be properly linked. **Fix**: Use `CHECK(static_cast<std::string>(obj.name) == "value")` instead of `CHECK(obj.name == "value")`
+11. **Catch2 string_view Linker Error**: When comparing `std::string_view` fields from library structures in Catch2 tests, explicitly cast to `std::string` to avoid LNK2019/LNK1120 linker errors on Windows. Catch2 v3's `StringMaker<std::string_view>` specialization may not be properly linked. **Fix**: Use `CHECK(static_cast<std::string>(obj.name) == "value")` instead of `CHECK(obj.name == "value")`. This applies to every assertion macro (`CHECK*`, `REQUIRE*`, `WARN`, `INFO`, `CAPTURE`), including `!=` and comparisons between two `string_view` fields. **Enforced** by `scripts/check_catch2_string_view.py`, which runs as the `Catch2StringViewGuard` CTest test (`tests/CMakeLists.txt`) and as a step in `.github/workflows/build-linux.yml`. Do not bypass or remove the guard; if it flags a false positive, fix the assertion or narrow the script's detection instead.
 
 ---
 
