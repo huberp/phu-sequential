@@ -10,6 +10,8 @@ add_executable(SequentialCoreTests
     core/MidiEventTests.cpp
     core/HeldNoteTrackerTests.cpp
     core/SourceSelectionTests.cpp
+    core/VelocityModesTests.cpp
+    core/StepDataTests.cpp
 )
 
 target_link_libraries(SequentialCoreTests PRIVATE
