@@ -29,7 +29,7 @@ set_target_properties(SequentialCoreTests PROPERTIES
 include(Catch)
 catch_discover_tests(SequentialCoreTests)
 
-# Catch2 string_view linker guard (cpp.instructions.md item 11): fails if any assertion stringifies a std::string_view
-find_package(Python3 COMPONENTS Interpreter REQUIRED)
+# Catch2 string_view linker guard (cpp.instructions.md item 11): fails if any assertion stringifies a std::string_view.
+# Pure CMake script so it runs on every CI platform without a Python dependency.
 add_test(NAME Catch2StringViewGuard
-    COMMAND Python3::Interpreter ${PROJECT_SOURCE_DIR}/scripts/check_catch2_string_view.py ${PROJECT_SOURCE_DIR})
+    COMMAND ${CMAKE_COMMAND} -P ${PROJECT_SOURCE_DIR}/scripts/check_catch2_string_view.cmake)

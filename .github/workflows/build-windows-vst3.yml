@@ -46,6 +46,10 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Check Catch2 string_view usage
+        shell: pwsh
+        run: cmake -P scripts/check_catch2_string_view.cmake
+
       - name: Configure CMake
         shell: pwsh
         run: |

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "hooks": {
+    "postToolUse": [
+      {
+        "type": "command",
+        "cwd": ".",
+        "bash": "if command -v cmake >/dev/null 2>&1 && ! cmake -P scripts/check_catch2_string_view.cmake >/dev/null 2>&1; then echo '{\"additionalContext\": \"Catch2 string_view guard FAILED. Run: cmake -P scripts/check_catch2_string_view.cmake to list the violations, then wrap each flagged std::string_view operand in static_cast<std::string> (see .github/instructions/cpp.instructions.md item 11).\"}'; fi; exit 0",
+        "powershell": "if (Get-Command cmake -ErrorAction SilentlyContinue) { cmake -P scripts/check_catch2_string_view.cmake *> $null; if ($LASTEXITCODE -ne 0) { Write-Output '{\"additionalContext\": \"Catch2 string_view guard FAILED. Run: cmake -P scripts/check_catch2_string_view.cmake to list the violations, then wrap each flagged std::string_view operand in static_cast<std::string> (see .github/instructions/cpp.instructions.md item 11).\"}' } }",
+        "timeoutSec": 60
+      }
+    ]
+  }
+}

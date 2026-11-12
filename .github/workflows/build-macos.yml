@@ -48,6 +48,9 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Check Catch2 string_view usage
+        run: cmake -P scripts/check_catch2_string_view.cmake
+
       - name: Configure CMake
         run: |
           PRESET="macos-${{ inputs.arch == 'x64' && 'x64' || 'arm64' }}-release"
