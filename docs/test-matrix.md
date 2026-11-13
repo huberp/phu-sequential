@@ -3,6 +3,7 @@
 Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.md` §3–§6.
 
 ## Conventions
+- Navigation: sections are `## §<n> ...` (match spec §). `grep -n '^## §9' docs/test-matrix.md` to find a block, or `grep -n 'REQ-9\.' docs/test-matrix.md` for its IDs; `grep -n 'M14' docs/test-matrix.md` for a module's rows. Test files: `tests/core/<Module>Tests.cpp` (see `docs/module-map.md`, `tests/README.md`). Do not read this file whole.
 - ID `REQ-<§>-<n>`. Catch2 tag `[REQ-<§>-<n>]` + module tag `[Mnn]`. One test may carry several IDs.
 - Defaults (§20) unless stated: 120 bpm, 48 kHz → 1 beat = 24000 samples; 1/16 step = 0.25 beat = 6000 samples; 16 steps, gate 100, out ch 1, transpose 0, Thru off, Consume on, chord in ch 1.
 - Notation: `NOn(ch,pitch,vel)`, `NOff(ch,pitch)`, `@b` = beat, `@s` = sample (absolute), `L1..L8` = lanes (L1 = chord-follow idx 0 if unspecified), `T+`/`T-` = transport start/stop, `loc(b)` = locate.

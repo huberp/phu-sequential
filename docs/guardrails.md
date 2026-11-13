@@ -1,5 +1,7 @@
 # Guardrails for phu-sequential
 
+> **Reference only.** Agents: read only when changing CI, hooks or static/dynamic analysis. Day-to-day rules are in `.github/copilot-instructions.md` and `.github/instructions/cpp.instructions.md`.
+
 This document describes the quality assurance mechanisms in place for the phu-sequential project, categorized into **AI guardrails** (for AI assistants like Copilot) and **non-AI guardrails** (for all contributors).
 
 ## Table of Contents

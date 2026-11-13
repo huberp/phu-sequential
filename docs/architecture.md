@@ -9,6 +9,7 @@ Conventions used here:
 - **[MT]** = message/UI thread or any non-audio thread only (may allocate/lock).
 - Header sketches are normative for names, signatures, ownership and semantics. Private members are indicative; implementers may change them if the public contract and the RT guarantees hold.
 - Module IDs `M01`…`M24` are stable and used by `docs/test-matrix.md` (#3) as "owning module".
+- **Navigation (token-efficient):** this file is large (~2000 lines). Do not read it whole. Use `docs/module-map.md` to find the module's section, then `grep -n '^### 4.3' docs/architecture.md` (heading numbers are stable; line numbers are not) and read only that range. Top-level sections: §1 layers/layout/dependency graph, §2 units/data types, §3 `lib/sequencing` modules (M01–M11, M18), §4 `lib/arpeggiator` modules (M12–M17 + core parts of M20/M21/M23), §5 per-block flow, §6 JUCE adapter (M19–M24), §7 threading, §8 build/CMake/CI, §9 issue→module map, §10 decisions index (D-n), §11 testing architecture, §12 spec ambiguities (A-n).
 
 ---
 

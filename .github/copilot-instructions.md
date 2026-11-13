@@ -1,111 +1,45 @@
 # Copilot Instructions for phu-sequential
 
-**When making changes to the plugin, always:**
+VST3 MIDI arpeggiator sequencer (C++20, JUCE only in `src/`, Catch2 v3 tests).
 
-1. **Consult `spec/arp-spec.md`** — the single source of truth for plugin behavior and architecture (§2, §15, §16, §18).
-2. **Consult `docs/architecture.md`** — the specification for directory layout, target names, namespaces, and module interfaces.
-3. **Report any deviations** — if you introduce behavior or interfaces that differ from the spec or architecture document, tell the user explicitly.
-4. **Keep documentation updated** — if the architecture document differs from what you build (names, interfaces, module organization), update `docs/architecture.md` in the same commit.
+## Rules for every change
 
----
+1. **Spec first**: `spec/arp-spec.md` is the source of truth (cited as `§n`). It wins over every other document.
+2. **Architecture**: `docs/architecture.md` defines layout, target names, namespaces and module interfaces (modules `M01`–`M24`).
+3. **Report deviations** from spec/architecture to the user explicitly.
+4. **Keep docs in sync**: if you change names, interfaces or module organization, update `docs/architecture.md` (and `docs/module-map.md` if files/tests move) in the same commit.
+5. C++/JUCE rules (RT safety, namespaces, Catch2 pitfalls): `.github/instructions/cpp.instructions.md` (auto-applied to C++ files).
+6. All code, tests and scripts must work on every CI platform (Windows x64, Linux x64/arm64, macOS x64/arm64): CMake-native/cross-platform mechanisms only. See `.github/workflows/`.
 
-## Project Structure
+## Navigate cheaply (do NOT read whole docs)
 
-- **Repository Root**: `phu-sequential/`
-- **Core Libraries**: `lib/sequencing/` (reusable), `lib/arpeggiator/` (plugin-specific)
-- **JUCE Adapter**: `src/` (plugin implementation)
-- **Tests**: `tests/` (Catch2 v3)
-- **Documentation**: `docs/`, `spec/`
-- **Build System**: `CMakeLists.txt`, `cmake/`
-- **CI/CD**: `.github/workflows/`
+`docs/architecture.md` (~42k tokens), `docs/test-matrix.md` (~9k) and `spec/arp-spec.md` (~7k) are large. Read only what you need:
 
----
+1. Open `docs/module-map.md` — one row per module: architecture heading, source files, tests, spec §, decisions D-nn, dependencies.
+2. Find the section by heading, then read only that range:
+   `grep -n '^### 4.3' docs/architecture.md` → `view` with `view_range`.
+3. Spec sections: `grep -n '^## ' spec/arp-spec.md`; test requirements: `grep -n '§9' docs/test-matrix.md` (rows grouped by spec §).
+4. Decisions: `grep -n 'D-14' docs/architecture.md` (index in architecture §10).
+5. Per-directory orientation: `lib/sequencing/README.md`, `lib/arpeggiator/README.md`, `src/README.md`, `tests/README.md`.
 
-## C++ and JUCE Specific Instructions
+`.github/COPILOT_GUARDRAILS_SUMMARY.md` and `docs/guardrails.md` are background reference only; read them only when changing CI, hooks or static analysis.
 
-For C++ and JUCE best practices, see the path-specific instructions file:
-- `.github/instructions/cpp.instructions.md` (applies to all `.cpp`, `.h`, `.hpp`, `.cc`, `.cxx` files)
+## Build and test (Linux x64)
 
-This file contains detailed guidance on:
-- C++ code style and structure
-- Type safety and modern C++ practices
-- Memory and performance constraints (especially for real-time audio thread)
-- JUCE framework usage rules
-- Architecture-specific module boundaries
-- Testing strategies
-- Quality guardrails
-- Common pitfalls
-
----
-
-## General Quality Guardrails
-
-### CI/CD
-
-- **Build Matrix**: All platforms (Windows x64, Linux x64/arm64, macOS x64/arm64)
-- **Platform Rule**: All code, including tests and scripts, must work on every platform in the build matrix. Use CMake-native or cross-platform mechanisms only; never depend on a specific interpreter path or platform-only tooling. Verify against `.github/workflows/`.
-- **Guard Hook**: `.github/hooks/catch2-string-view-guard.json` runs `cmake -P scripts/check_catch2_string_view.cmake` after every tool call (Catch2 string_view linker guard, cpp.instructions.md item 11)
-- **Test Execution**: Run all tests on every push and PR
-- **Validation**: Run pluginval on Windows and macOS builds
-- **Artifacts**: Upload build artifacts for debugging
-
-### Code Review
-
-- **Spec Compliance**: Every change must be traceable to spec/arp-spec.md
-- **Architecture Compliance**: Every change must follow docs/architecture.md
-- **Module Ownership**: Changes to module Mxx must be reviewed against test-matrix.md
-- **No Force Pushes**: Protect main branch; require PR reviews
-
----
-
-## Copilot Cloud Harness Guardrails
-
-### Pre-Commit Hooks (Recommended)
-
-Create `.git/hooks/pre-commit` or use `pre-commit` framework:
 ```bash
-#!/bin/sh
-# Run clang-format check
-git diff --cached --name-only | grep -E '\.(h|cpp)$' | xargs clang-format --dry-run --Werror
-# Run tests
-git stash push --keep-index
-cmake --build --preset test
-cmake --build --target test
-git stash pop
+cmake --preset linux-x64-vst3-release
+cmake --build --preset linux-x64-vst3-release-build --target SequentialCoreTests   # core tests only (skips plugin)
+ctest --test-dir build/linux-x64-vst3-release --output-on-failure                  # all tests (no ctest presets exist)
+ctest --test-dir build/linux-x64-vst3-release -R "REQ-4"                           # subset by test name/tag regex
+cmake -P scripts/check_catch2_string_view.cmake        # Catch2 guard (also runs as a post-tool hook)
 ```
 
-### GitHub Actions Hooks
+macOS/Windows presets: see `README.md`.
 
-- **Required Checks**: Build, test, pluginval must pass before merge
-- **Branch Protection**: Require status checks, reviews, and signed commits
-- **CODEOWNERS**: Define code ownership for critical paths
+## Recommended workflow for a module issue
 
-### Custom Validation Scripts
+Tests first, then header/skeleton, then implementation (TDD). Delegating those steps to cheap subagents (e.g. claude-haiku-4.5) worked well (PR #25); then review and fix manually. Tick the module's `todo` rows in `docs/test-matrix.md` in the same PR.
 
-- **Architecture Check**: Script to verify no JUCE headers in lib/
-- **Dependency Check**: Script to verify module dependency order
-- **RT Violations**: Script to detect allocation/locks in [RT] paths
-- **Spec Compliance**: Script to check behavior against spec/arp-spec.md
+## Layout
 
-### IDE Configuration
-
-- **.editorconfig**: Consistent indentation, charset, line endings
-- **.clang-tidy**: Static analysis rules
-- **.clang-format**: Code formatting rules
-- **compile_commands.json**: For IDE integration (enabled via `CMAKE_EXPORT_COMPILE_COMMANDS`)
-
----
-
-## Quick Reference
-
-| Concept | Location | Key File |
-|---------|----------|----------|
-| Spec | `spec/arp-spec.md` | §2-§21 |
-| Architecture | `docs/architecture.md` | M01-M24 |
-| Tests | `tests/` | Catch2 v3 |
-| CI Config | `.github/workflows/` | Build, test, validate |
-| C++ Instructions | `.github/instructions/cpp.instructions.md` | C++/JUCE best practices |
-
----
-
-**Remember**: When in doubt, consult the spec first, then the architecture document. If behavior is ambiguous, flag it for user clarification.
+`lib/sequencing/` (reusable core, `phu::sequencing`) → `lib/arpeggiator/` (`phu::arpeggiator`) → `src/` (JUCE adapter, `phu::plugin`). `tests/core`, `tests/support`. `docs/`, `spec/`, `cmake/`, `.github/workflows/`.

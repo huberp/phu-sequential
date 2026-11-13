@@ -40,10 +40,10 @@ cmake --build --preset windows-x64-vst3-release-build
 
 ```bash
 # Run Catch2 tests for the core library
-cmake --build --preset linux-x64-vst3-release-build --target test
+cmake --build --preset linux-x64-vst3-release-build --target SequentialCoreTests
 
-# Or run directly
-ctest --preset linux-x64-vst3-release
+# Run all tests (no ctest presets exist; use --test-dir)
+ctest --test-dir build/linux-x64-vst3-release --output-on-failure
 ```
 
 ## Linux-Specific Setup
