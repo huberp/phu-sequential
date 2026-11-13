@@ -90,7 +90,7 @@ TEST_CASE("OutputEventBuffer::droppedEventCount increments on refused Note-On", 
     // Fill with Note-Ons until full
     for (int i = 0; i < 2; ++i) {
         const auto noteOn = makeNoteOn(0, 1, 60 + i, 100);
-        buffer.tryPushNoteOn(noteOn);
+        (void)buffer.tryPushNoteOn(noteOn);
     }
     
     CHECK(buffer.droppedEventCount() == 0);
@@ -113,13 +113,13 @@ TEST_CASE("OutputEventBuffer::clear removes all events and resets dropped count"
     
     // Add some events
     buffer.pushNoteOff(makeNoteOff(0, 1, 60));
-    buffer.tryPushNoteOn(makeNoteOn(0, 1, 61, 100));
+    (void)buffer.tryPushNoteOn(makeNoteOn(0, 1, 61, 100));
     
     // Try to overfill to increment dropped count
     const auto testCapacity2 = 2;
     OutputEventBuffer smallBuffer(testCapacity2);
-    smallBuffer.tryPushNoteOn(makeNoteOn(0, 1, 60, 100));
-    smallBuffer.tryPushNoteOn(makeNoteOn(0, 1, 61, 100));
+    (void)smallBuffer.tryPushNoteOn(makeNoteOn(0, 1, 60, 100));
+    (void)smallBuffer.tryPushNoteOn(makeNoteOn(0, 1, 61, 100));
     
     smallBuffer.clear();
     CHECK(smallBuffer.size() == 0);
@@ -135,7 +135,7 @@ TEST_CASE("OutputEventBuffer::events returns events in insertion order", "[M06]"
     const auto off2 = makeNoteOff(30, 3, 62);
     
     buffer.pushNoteOff(off1);
-    buffer.tryPushNoteOn(on1);
+    (void)buffer.tryPushNoteOn(on1);
     buffer.pushNoteOff(off2);
     
     const auto& events = buffer.events();
@@ -154,7 +154,7 @@ TEST_CASE("OutputEventBuffer::size returns current number of events", "[M06]") {
     buffer.pushNoteOff(makeNoteOff(0, 1, 60));
     CHECK(buffer.size() == 1);
     
-    buffer.tryPushNoteOn(makeNoteOn(0, 1, 61, 100));
+    (void)buffer.tryPushNoteOn(makeNoteOn(0, 1, 61, 100));
     CHECK(buffer.size() == 2);
     
     buffer.clear();
@@ -167,8 +167,8 @@ TEST_CASE("OutputEventBuffer: pushNoteOff always succeeds (uses reserve partitio
     OutputEventBuffer buffer(testCapacity);
     
     // Fill with 2 Note-Ons
-    buffer.tryPushNoteOn(makeNoteOn(0, 1, 60, 100));
-    buffer.tryPushNoteOn(makeNoteOn(0, 1, 61, 100));
+    (void)buffer.tryPushNoteOn(makeNoteOn(0, 1, 60, 100));
+    (void)buffer.tryPushNoteOn(makeNoteOn(0, 1, 61, 100));
     
     // Now buffer is full in the non-reserved area
     // But Note-Offs should still fit in reserve
