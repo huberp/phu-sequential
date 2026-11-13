@@ -15,7 +15,7 @@ std::array<GridLayout, constants::lanes::laneCount> makeLanes() {
 } // namespace
 
 TEST_CASE("DisplayScale: 12x1/8 lane is exactly four 1/8-step widths wider than an 8x1/8 lane, "
-          "and a 7x1/8 lane is one 1/8-step width narrower than the 8x1/8 lane (§14)",
+          "and a 7x1/8 lane is one 1/8-step width narrower than the 8x1/8 lane (sec. 14)",
           "[M23c][display-scale][REQ-14-shared-scale]") {
     auto lanes = makeLanes();
     lanes[0] = makeUniformGridLayout(NoteLength{8, Subdivision::straight}, 12);
@@ -48,7 +48,7 @@ TEST_CASE("DisplayScale: pixelsPerBeat is availableWidth / longestLoopBeats when
     CHECK(scale.lanes[0].stepStartPixels[12] == Catch::Approx(scale.lanes[0].loopWidthPixels));
 }
 
-TEST_CASE("DisplayScale: scale is clamped so no step is narrower than minimumStepDisplayWidth (§14)",
+TEST_CASE("DisplayScale: scale is clamped so no step is narrower than minimumStepDisplayWidth (sec. 14)",
           "[M23c][display-scale][REQ-14-min-step-width]") {
     auto lanes = makeLanes();
     lanes[0] = makeUniformGridLayout(NoteLength{16, Subdivision::straight}, 4);  // step = 0.25 beat, loop = 1 beat

@@ -14,6 +14,8 @@ target_sources(SequentialCoreLib PRIVATE
     sequencing/TextGridParser.h
     sequencing/TextGridParser.cpp
     sequencing/MidiEvent.h
+    sequencing/OutputEventBuffer.h
+    sequencing/OutputEventBuffer.cpp
     sequencing/HeldNoteTracker.h
     sequencing/HeldNoteTracker.cpp
     sequencing/sources/SourceSelection.h
@@ -32,6 +34,8 @@ target_sources(SequentialCoreLib PRIVATE
     sequencing/velocity/VelocityModeRegistry.cpp
     sequencing/StepData.h
     sequencing/StepData.cpp
+    sequencing/VoiceRegistry.h
+    sequencing/VoiceRegistry.cpp
     arpeggiator/DisplayScale.h
     arpeggiator/DisplayScale.cpp
 )

@@ -12,6 +12,8 @@ add_executable(SequentialCoreTests
     core/SourceSelectionTests.cpp
     core/VelocityModesTests.cpp
     core/StepDataTests.cpp
+    core/OutputEventBufferTests.cpp
+    core/VoiceRegistryTests.cpp
 )
 
 target_link_libraries(SequentialCoreTests PRIVATE
