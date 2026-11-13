@@ -969,6 +969,14 @@ private:
     int currentStepIndex_ = -1;
     std::optional<SourceNote> lastObservedSource_;
     std::optional<SourceNote> latchMemory_;
+
+    // Implementation-detail private helpers (not part of this sketch, no effect on the public
+    // interface or persisted state): effectiveCommittedSelector folds the always-immediate (D-24)
+    // chordInputChannel into committedSelector_ for a selectSource call; commitPendingSelector /
+    // commitPendingLayoutWithoutReanchor commit a pending change without the step-start re-anchor
+    // (used by stop/resynchronize/updateSettings-while-stopped); recordDiscardIfDecrease applies
+    // the D-32 bookkeeping shared by every commit path; triggerStep/scheduleNextStepStart implement
+    // behavior items 2 and 1.4 respectively.
 };
 }
 ```
