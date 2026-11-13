@@ -254,7 +254,7 @@ TEST_CASE("HeldNoteTracker::heldNoteAtIndex is O(128) rescan", "[M07]") {
     }
 }
 
-TEST_CASE("HeldNoteTracker::mostRecentNote returns most recent held note (§4.3)", "[M07][REQ-4.3-1]") {
+TEST_CASE("HeldNoteTracker::mostRecentNote returns most recent held note (sec. 4.3)", "[M07][REQ-4.3-1]") {
     HeldNoteTracker tracker;
 
     tracker.apply(makeNoteOn(0, 1, 60, 100));
@@ -303,7 +303,7 @@ TEST_CASE("HeldNoteTracker::mostRecentNote ignores older notes when newer is hel
     CHECK(recent->pitch == 64);
 }
 
-TEST_CASE("HeldNoteTracker::mostRecentNote stays while sustained, ends on pedal up (§3.1, REQ-3.1-6)",
+TEST_CASE("HeldNoteTracker::mostRecentNote stays while sustained, ends on pedal up (sec. 3.1, REQ-3.1-6)",
           "[M07][REQ-3.1-6]") {
     HeldNoteTracker tracker;
     tracker.apply(MidiEvent{0, MidiEventKind::controlChange, 1, midi::sustainPedalController, 127});

@@ -30,7 +30,7 @@ TEST_CASE("StepTiming: makeUniformGridLayout clamps step count to [1, 64]",
     CHECK(makeUniformGridLayout(NoteLength{16, Subdivision::straight}, 100).stepCount == 64);
 }
 
-TEST_CASE("StepTiming: 12 steps of 1/8 vs 8 steps of 1/8 differ by exactly 4 step widths (§14)",
+TEST_CASE("StepTiming: 12 steps of 1/8 vs 8 steps of 1/8 differ by exactly 4 step widths (sec. 14)",
           "[M03][step-timing][REQ-14-display-scale]") {
     const auto twelve = makeUniformGridLayout(NoteLength{8, Subdivision::straight}, 12);
     const auto eight = makeUniformGridLayout(NoteLength{8, Subdivision::straight}, 8);
@@ -78,7 +78,7 @@ TEST_CASE("StepTiming: swingAdvanceBeats is 0 for even 0-based steps and for tex
     CHECK(swingAdvanceBeats(stepLengthTicks, 1, 50, false) == 0.0);  // text grid: swing never applies
 }
 
-TEST_CASE("StepTiming: swingAdvanceBeats at 50% matches the §3.3 worked example",
+TEST_CASE("StepTiming: swingAdvanceBeats at 50% matches the sec. 3.3 worked example",
           "[M03][step-timing][REQ-5.1-swing-50]") {
     const auto layout = makeUniformGridLayout(NoteLength{16, Subdivision::straight}, 4);  // step length 0.25 beat
     const int swingPercent = 50;
@@ -91,7 +91,7 @@ TEST_CASE("StepTiming: swingAdvanceBeats at 50% matches the §3.3 worked example
           Catch::Approx(0.6875));
 }
 
-TEST_CASE("StepTiming: swingAdvanceBeats at 100% shifts by half a step (§5.1)",
+TEST_CASE("StepTiming: swingAdvanceBeats at 100% shifts by half a step (sec. 5.1)",
           "[M03][step-timing][REQ-5.1-swing-100]") {
     const auto layout = makeUniformGridLayout(NoteLength{16, Subdivision::straight}, 4);
     const auto advance = swingAdvanceBeats(layout.stepLengthTicks[1], 1, 100, layout.swingApplies);

@@ -24,7 +24,7 @@ TEST_CASE("Constants: velocity limits are defined in exactly one place", "[M01][
     CHECK(velocity::percentDivisor == 100);
 }
 
-TEST_CASE("Constants: lane and step limits match §4, §5.4, §9.4", "[M01][constants][lanes]") {
+TEST_CASE("Constants: lane and step limits match sec. 4, sec. 5.4, sec. 9.4", "[M01][constants][lanes]") {
     CHECK(lanes::laneCount == 8);
     CHECK(lanes::minimumStepCount == 1);
     CHECK(lanes::maximumStepCount == 64);
@@ -41,7 +41,7 @@ TEST_CASE("Constants: lane and step limits match §4, §5.4, §9.4", "[M01][cons
     CHECK(lanes::maximumVoicesPerLane == 32);
 }
 
-TEST_CASE("Constants: timing list and modifier factors (§5.1, §16.2)", "[M01][constants][timing]") {
+TEST_CASE("Constants: timing list and modifier factors (sec. 5.1, sec. 16.2)", "[M01][constants][timing]") {
     CHECK(timing::baseTimingDenominators == std::array<int, 6>{32, 16, 8, 4, 2, 1});
     CHECK(timing::tripletFactor.numerator == 2);
     CHECK(timing::tripletFactor.denominator == 3);
@@ -54,7 +54,7 @@ TEST_CASE("Constants: timing list and modifier factors (§5.1, §16.2)", "[M01][
     CHECK(timing::textGridMaximumEntries == 64);
 }
 
-TEST_CASE("Constants: lane color palette has 8 distinct colors in lane order (§14, §16.3, §20)",
+TEST_CASE("Constants: lane color palette has 8 distinct colors in lane order (sec. 14, sec. 16.3, sec. 20)",
           "[M01][constants][colors]") {
     CHECK(colors::defaultLanePalette.size() == lanes::laneCount);
     for (std::size_t i = 0; i < colors::defaultLanePalette.size(); ++i) {
@@ -64,7 +64,7 @@ TEST_CASE("Constants: lane color palette has 8 distinct colors in lane order (§
     }
 }
 
-TEST_CASE("Constants: minimum step display width is a named constant (§14, §16.3)",
+TEST_CASE("Constants: minimum step display width is a named constant (sec. 14, sec. 16.3)",
           "[M01][constants][editor]") {
     CHECK(editor::minimumStepDisplayWidth > 0);
 }
