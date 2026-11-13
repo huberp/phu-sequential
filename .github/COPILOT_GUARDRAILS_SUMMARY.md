@@ -1,5 +1,7 @@
 # Copilot Guardrails Summary for phu-sequential
 
+> **Reference only — not needed for normal coding tasks.** Agents: do not read this unless changing CI, hooks or tooling. Authoritative rules live in `.github/copilot-instructions.md` and `.github/instructions/cpp.instructions.md`.
+
 ## Quick Answer to Your Questions
 
 ### Q1: What AI-guardrails exist and what should be added?

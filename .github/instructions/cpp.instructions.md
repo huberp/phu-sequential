@@ -107,17 +107,7 @@ applyTo: "**/*.cpp,**/*.h,**/*.hpp,**/*.cc,**/*.cxx"
 
 ## Quality Guardrails
 
-### Static Analysis
-
-- **Compiler Warnings**: Enable with `ENABLE_STRICT_WARNINGS` (Wall, Wextra, Wpedantic on GCC/Clang; /W4 on MSVC)
-- **Sanitizers**: Enable with `ENABLE_SANITIZERS` (AddressSanitizer, UndefinedBehaviorSanitizer)
-- **Clang-Tidy**: Run with `clang-tidy` for modern C++ checks
-- **Clang-Format**: Format code consistently (configure via `.clang-format`)
-
-### Dynamic Analysis
-
-- **Valgrind**: Run tests under valgrind to detect memory issues
-- **Pluginval**: Validate VST3 plugin with `pluginval` (strictness level 5 in CI)
+Static/dynamic analysis tooling (warnings, sanitizers, clang-tidy, valgrind, pluginval) is described in `docs/guardrails.md`; read it only when changing CI or tooling.
 
 ---
 
@@ -141,11 +131,4 @@ applyTo: "**/*.cpp,**/*.h,**/*.hpp,**/*.cc,**/*.cxx"
 
 ## Quick Reference
 
-| Concept | Location | Key File |
-|---------|----------|----------|
-| Constants | `lib/sequencing/Constants.h` | All `inline constexpr` |
-| Voice Management | `lib/sequencing/VoiceRegistry.h` | `startVoice`, `endVoice` |
-| Triple Buffer | `lib/sequencing/TripleBuffer.h` | `writeBuffer`, `publish`, `update` |
-| Lane Engine | `lib/arpeggiator/LaneEngine.h` | `processNextTimelineEvent` |
-| Sequencer Core | `lib/arpeggiator/SequencerCore.h` | `processBlock` |
-| Plugin Processor | `src/PluginProcessor.h` | JUCE adapter |
+Module → files → tests → spec §: see `docs/module-map.md`.
