@@ -14,6 +14,9 @@ add_executable(SequentialCoreTests
     core/StepDataTests.cpp
     core/OutputEventBufferTests.cpp
     core/VoiceRegistryTests.cpp
+    core/LaneConfigurationTests.cpp
+    core/LanePositionTests.cpp
+    core/LaneEngineTests.cpp
 )
 
 target_link_libraries(SequentialCoreTests PRIVATE

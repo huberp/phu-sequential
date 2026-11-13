@@ -36,6 +36,14 @@ target_sources(SequentialCoreLib PRIVATE
     sequencing/StepData.cpp
     sequencing/VoiceRegistry.h
     sequencing/VoiceRegistry.cpp
+    arpeggiator/LaneConfiguration.h
+    arpeggiator/LaneConfiguration.cpp
+    arpeggiator/BlockClock.h
+    arpeggiator/BlockClock.cpp
+    arpeggiator/LanePosition.h
+    arpeggiator/LanePosition.cpp
+    arpeggiator/LaneEngine.h
+    arpeggiator/LaneEngine.cpp
     arpeggiator/DisplayScale.h
     arpeggiator/DisplayScale.cpp
 )

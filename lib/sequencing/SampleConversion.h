@@ -31,7 +31,7 @@ using SampleOffset = std::int32_t;
 
 // D-15: floor((beat - blockStartBeat) * samplesPerBeat + sampleRoundingEpsilon), clamped to [0, numSamples-1]
 // (returns 0 when numSamples <= 0).
-[[nodiscard]] SampleOffset beatToSampleOffset(Beats beat, Beats blockStartBeat,
+[[nodiscard]] inline SampleOffset beatToSampleOffset(Beats beat, Beats blockStartBeat,
                                               double samplesPerBeat, int numSamples) noexcept {
     if (numSamples <= 0) {
         return 0;
