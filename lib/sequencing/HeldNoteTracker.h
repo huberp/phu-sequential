@@ -13,7 +13,7 @@ struct HeldNote {
     friend constexpr bool operator==(const HeldNote&, const HeldNote&) noexcept = default;
 };
 
-class MidiEvent;
+struct MidiEvent;
 
 class HeldNoteTracker {
 public:

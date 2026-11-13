@@ -45,7 +45,7 @@ TEST_CASE("VoiceRegistry::startVoice returns invalid handle if buffer full", "[M
     
     // Fill buffer with one Note-On
     const VoiceStartRequest req1{0, 1, 60, 100, noScheduledEnd};
-    registry.startVoice(req1, 0, buffer);
+    (void)registry.startVoice(req1, 0, buffer);
     
     // Next Note-On should be refused
     const VoiceStartRequest req2{0, 1, 61, 100, noScheduledEnd};
@@ -93,7 +93,7 @@ TEST_CASE("VoiceRegistry::endVoice returns false and suppresses Note-Off if hand
     // Retrigger the same (channel, pitch) - ownership transfers
     buffer.clear();
     const VoiceStartRequest req2{1, 1, 60, 110, noScheduledEnd};
-    registry.startVoice(req2, 5, buffer);
+    (void)registry.startVoice(req2, 5, buffer);
     
     buffer.clear();
     
@@ -155,7 +155,7 @@ TEST_CASE("VoiceRegistry::startVoice ownership transfer across lanes", "[M11][RE
     
     // Lane 0 plays (1, 60)
     const VoiceStartRequest req1{0, 1, 60, 100, noScheduledEnd};
-    registry.startVoice(req1, 0, buffer);
+    (void)registry.startVoice(req1, 0, buffer);
     
     CHECK(registry.ownerOf(1, 60) == 0);
     
@@ -163,7 +163,7 @@ TEST_CASE("VoiceRegistry::startVoice ownership transfer across lanes", "[M11][RE
     
     // Lane 1 retriggers same (1, 60)
     const VoiceStartRequest req2{1, 1, 60, 110, noScheduledEnd};
-    registry.startVoice(req2, 5, buffer);
+    (void)registry.startVoice(req2, 5, buffer);
     
     CHECK(registry.ownerOf(1, 60) == 1);
 }
@@ -212,20 +212,20 @@ TEST_CASE("VoiceRegistry::setVoiceLimit only affects specified owner", "[M11][RE
     registry.setVoiceLimit(1, 100); // Owner 1 limit: 100
     
     // Fill owner 0 with 2 voices
-    registry.startVoice(VoiceStartRequest{0, 1, 60, 100, noScheduledEnd}, 0, buffer);
-    registry.startVoice(VoiceStartRequest{0, 2, 61, 100, noScheduledEnd}, 1, buffer);
+    (void)registry.startVoice(VoiceStartRequest{0, 1, 60, 100, noScheduledEnd}, 0, buffer);
+    (void)registry.startVoice(VoiceStartRequest{0, 2, 61, 100, noScheduledEnd}, 1, buffer);
     
     buffer.clear();
     
     // Third voice should evict one from owner 0
-    registry.startVoice(VoiceStartRequest{0, 3, 62, 100, noScheduledEnd}, 2, buffer);
+    (void)registry.startVoice(VoiceStartRequest{0, 3, 62, 100, noScheduledEnd}, 2, buffer);
     CHECK(registry.soundingCount(0) == 2);
     
     buffer.clear();
     
     // Owner 1 can have many voices
     for (int i = 0; i < 10; ++i) {
-        registry.startVoice(VoiceStartRequest{1, 4, static_cast<int>(60 + i), 100, noScheduledEnd}, i + 3, buffer);
+        (void)registry.startVoice(VoiceStartRequest{1, 4, static_cast<int>(60 + i), 100, noScheduledEnd}, i + 3, buffer);
     }
     
     CHECK(registry.soundingCount(1) == 10);
@@ -237,9 +237,9 @@ TEST_CASE("VoiceRegistry::releaseOwner emits Note-Offs for all owner's voices (o
     OutputEventBuffer buffer(bufCapacity);
     
     // Start 3 voices for owner 0
-    registry.startVoice(VoiceStartRequest{0, 1, 60, 100, noScheduledEnd}, 0, buffer);
-    registry.startVoice(VoiceStartRequest{0, 2, 61, 100, noScheduledEnd}, 1, buffer);
-    registry.startVoice(VoiceStartRequest{0, 3, 62, 100, noScheduledEnd}, 2, buffer);
+    (void)registry.startVoice(VoiceStartRequest{0, 1, 60, 100, noScheduledEnd}, 0, buffer);
+    (void)registry.startVoice(VoiceStartRequest{0, 2, 61, 100, noScheduledEnd}, 1, buffer);
+    (void)registry.startVoice(VoiceStartRequest{0, 3, 62, 100, noScheduledEnd}, 2, buffer);
     
     buffer.clear();
     
@@ -263,9 +263,9 @@ TEST_CASE("VoiceRegistry::releaseAll emits Note-Offs for all voices (oldest firs
     OutputEventBuffer buffer(bufCapacity);
     
     // Start voices for multiple owners
-    registry.startVoice(VoiceStartRequest{0, 1, 60, 100, noScheduledEnd}, 0, buffer);
-    registry.startVoice(VoiceStartRequest{1, 2, 61, 100, noScheduledEnd}, 1, buffer);
-    registry.startVoice(VoiceStartRequest{2, 3, 62, 100, noScheduledEnd}, 2, buffer);
+    (void)registry.startVoice(VoiceStartRequest{0, 1, 60, 100, noScheduledEnd}, 0, buffer);
+    (void)registry.startVoice(VoiceStartRequest{1, 2, 61, 100, noScheduledEnd}, 1, buffer);
+    (void)registry.startVoice(VoiceStartRequest{2, 3, 62, 100, noScheduledEnd}, 2, buffer);
     
     buffer.clear();
     
@@ -288,8 +288,8 @@ TEST_CASE("VoiceRegistry::reset clears all voices WITHOUT emitting events", "[M1
     OutputEventBuffer buffer(bufCapacity);
     
     // Start some voices
-    registry.startVoice(VoiceStartRequest{0, 1, 60, 100, noScheduledEnd}, 0, buffer);
-    registry.startVoice(VoiceStartRequest{0, 2, 61, 100, noScheduledEnd}, 1, buffer);
+    (void)registry.startVoice(VoiceStartRequest{0, 1, 60, 100, noScheduledEnd}, 0, buffer);
+    (void)registry.startVoice(VoiceStartRequest{0, 2, 61, 100, noScheduledEnd}, 1, buffer);
     
     buffer.clear();
     
@@ -320,9 +320,9 @@ TEST_CASE("VoiceRegistry::adoptVoice applies per-owner limit eviction on registr
     registry.setVoiceLimit(0, 2);
     
     // adoptVoice 3 voices
-    registry.adoptVoice(VoiceStartRequest{0, 1, 60, 100, noScheduledEnd});
-    registry.adoptVoice(VoiceStartRequest{0, 2, 61, 100, noScheduledEnd});
-    registry.adoptVoice(VoiceStartRequest{0, 3, 62, 100, noScheduledEnd});
+    (void)registry.adoptVoice(VoiceStartRequest{0, 1, 60, 100, noScheduledEnd});
+    (void)registry.adoptVoice(VoiceStartRequest{0, 2, 61, 100, noScheduledEnd});
+    (void)registry.adoptVoice(VoiceStartRequest{0, 3, 62, 100, noScheduledEnd});
     
     // Still at limit
     CHECK(registry.soundingCount(0) == 2);
@@ -334,13 +334,13 @@ TEST_CASE("VoiceRegistry::nextScheduledEnd returns earliest finite end (ties: ea
     OutputEventBuffer buffer(bufCapacity);
     
     // Voice 1: ends at beat 2.0, starts at 0
-    registry.startVoice(VoiceStartRequest{0, 1, 60, 100, 2.0}, 0, buffer);
+    (void)registry.startVoice(VoiceStartRequest{0, 1, 60, 100, 2.0}, 0, buffer);
     
     // Voice 2: ends at beat 1.0, starts at 1
-    registry.startVoice(VoiceStartRequest{0, 2, 61, 100, 1.0}, 1, buffer);
+    (void)registry.startVoice(VoiceStartRequest{0, 2, 61, 100, 1.0}, 1, buffer);
     
     // Voice 3: no scheduled end (noScheduledEnd)
-    registry.startVoice(VoiceStartRequest{0, 3, 62, 100, noScheduledEnd}, 2, buffer);
+    (void)registry.startVoice(VoiceStartRequest{0, 3, 62, 100, noScheduledEnd}, 2, buffer);
     
     const auto next = registry.nextScheduledEnd();
     REQUIRE(next.has_value());
@@ -355,8 +355,8 @@ TEST_CASE("VoiceRegistry::nextScheduledEnd ignores noScheduledEnd voices", "[M11
     OutputEventBuffer buffer(bufCapacity);
     
     // All voices have noScheduledEnd
-    registry.startVoice(VoiceStartRequest{0, 1, 60, 100, noScheduledEnd}, 0, buffer);
-    registry.startVoice(VoiceStartRequest{0, 2, 61, 100, noScheduledEnd}, 1, buffer);
+    (void)registry.startVoice(VoiceStartRequest{0, 1, 60, 100, noScheduledEnd}, 0, buffer);
+    (void)registry.startVoice(VoiceStartRequest{0, 2, 61, 100, noScheduledEnd}, 1, buffer);
     
     const auto next = registry.nextScheduledEnd();
     CHECK(next == std::nullopt);
@@ -418,10 +418,10 @@ TEST_CASE("VoiceRegistry::soundingCount returns total voices", "[M11]") {
     
     CHECK(registry.soundingCount() == 0);
     
-    registry.startVoice(VoiceStartRequest{0, 1, 60, 100, noScheduledEnd}, 0, buffer);
+    (void)registry.startVoice(VoiceStartRequest{0, 1, 60, 100, noScheduledEnd}, 0, buffer);
     CHECK(registry.soundingCount() == 1);
     
-    registry.startVoice(VoiceStartRequest{1, 2, 61, 100, noScheduledEnd}, 1, buffer);
+    (void)registry.startVoice(VoiceStartRequest{1, 2, 61, 100, noScheduledEnd}, 1, buffer);
     CHECK(registry.soundingCount() == 2);
 }
 
@@ -430,9 +430,9 @@ TEST_CASE("VoiceRegistry::soundingCount(owner) returns per-owner voices", "[M11]
     const int bufCapacity = capacity::noteOffReserveEvents + 10;
     OutputEventBuffer buffer(bufCapacity);
     
-    registry.startVoice(VoiceStartRequest{0, 1, 60, 100, noScheduledEnd}, 0, buffer);
-    registry.startVoice(VoiceStartRequest{0, 2, 61, 100, noScheduledEnd}, 1, buffer);
-    registry.startVoice(VoiceStartRequest{1, 3, 62, 100, noScheduledEnd}, 2, buffer);
+    (void)registry.startVoice(VoiceStartRequest{0, 1, 60, 100, noScheduledEnd}, 0, buffer);
+    (void)registry.startVoice(VoiceStartRequest{0, 2, 61, 100, noScheduledEnd}, 1, buffer);
+    (void)registry.startVoice(VoiceStartRequest{1, 3, 62, 100, noScheduledEnd}, 2, buffer);
     
     CHECK(registry.soundingCount(0) == 2);
     CHECK(registry.soundingCount(1) == 1);
@@ -443,8 +443,8 @@ TEST_CASE("VoiceRegistry::ownerOf returns owner of voice at (channel, pitch)", "
     const int bufCapacity = capacity::noteOffReserveEvents + 10;
     OutputEventBuffer buffer(bufCapacity);
     
-    registry.startVoice(VoiceStartRequest{0, 1, 60, 100, noScheduledEnd}, 0, buffer);
-    registry.startVoice(VoiceStartRequest{2, 2, 61, 100, noScheduledEnd}, 1, buffer);
+    (void)registry.startVoice(VoiceStartRequest{0, 1, 60, 100, noScheduledEnd}, 0, buffer);
+    (void)registry.startVoice(VoiceStartRequest{2, 2, 61, 100, noScheduledEnd}, 1, buffer);
     
     CHECK(registry.ownerOf(1, 60) == 0);
     CHECK(registry.ownerOf(2, 61) == 2);
@@ -554,12 +554,12 @@ TEST_CASE("VoiceRegistry: retrigger eviction order is retrigger-Off, eviction-Of
     registry.setVoiceLimit(0, 1);  // Limit 1 voice per owner
     
     // Start first voice
-    registry.startVoice(VoiceStartRequest{0, 1, 60, 100, noScheduledEnd}, 0, buffer);
+    (void)registry.startVoice(VoiceStartRequest{0, 1, 60, 100, noScheduledEnd}, 0, buffer);
     
     buffer.clear();
     
     // Retrigger same (channel, pitch)
-    registry.startVoice(VoiceStartRequest{0, 1, 60, 110, noScheduledEnd}, 1, buffer);
+    (void)registry.startVoice(VoiceStartRequest{0, 1, 60, 110, noScheduledEnd}, 1, buffer);
     
     REQUIRE(buffer.size() >= 2);
     const auto& events = buffer.events();

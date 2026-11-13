@@ -231,7 +231,7 @@ TEST_CASE("PassThroughFilter: a lane retriggering a passed-through key ends it f
 
     output.clear();
     VoiceStartRequest laneRequest{0, 1, 60, 110, noScheduledEnd};
-    voices.startVoice(laneRequest, 20, output);
+    (void)voices.startVoice(laneRequest, 20, output);
 
     // Same sample: retrigger Note-Off (of the passed-through voice) then Note-On (of the lane's).
     REQUIRE(output.size() == 2);
