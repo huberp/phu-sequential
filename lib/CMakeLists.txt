@@ -44,6 +44,15 @@ target_sources(SequentialCoreLib PRIVATE
     arpeggiator/LanePosition.cpp
     arpeggiator/LaneEngine.h
     arpeggiator/LaneEngine.cpp
+    arpeggiator/TransportTracker.h
+    arpeggiator/TransportTracker.cpp
+    arpeggiator/PassThroughFilter.h
+    arpeggiator/PassThroughFilter.cpp
+    arpeggiator/BlockTypes.h
+    arpeggiator/SequencerConfiguration.h
+    arpeggiator/SequencerConfiguration.cpp
+    arpeggiator/SequencerCore.h
+    arpeggiator/SequencerCore.cpp
     arpeggiator/DisplayScale.h
     arpeggiator/DisplayScale.cpp
 )

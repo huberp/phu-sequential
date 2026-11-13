@@ -1,4 +1,6 @@
 add_executable(SequentialCoreTests
+    support/AllocationGuard.cpp
+    support/ScenarioRunner.cpp
     core/PlaceholderTests.cpp
     core/ConstantsTests.cpp
     core/MusicalTimeTests.cpp
@@ -17,6 +19,13 @@ add_executable(SequentialCoreTests
     core/LaneConfigurationTests.cpp
     core/LanePositionTests.cpp
     core/LaneEngineTests.cpp
+    core/TransportTrackerTests.cpp
+    core/PassThroughFilterTests.cpp
+    core/SequencerCoreTests.cpp
+)
+
+target_include_directories(SequentialCoreTests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_link_libraries(SequentialCoreTests PRIVATE

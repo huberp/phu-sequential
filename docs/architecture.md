@@ -1169,6 +1169,10 @@ private:
     std::array<LaneEngine, constants::lanes::laneCount> lanes_;   // constructed with OwnerId 0..7
     bool wasBypassed_ = false;
     bool flushPending_ = false;                                    // D-44
+    bool transportPlaying_ = false;        // implementation addition (#11): last-seen transport
+                                            // play state, so playbackStatus() can report it after
+                                            // processBlock returns without re-deriving it from the
+                                            // TransportTracker's internal (non-public) state.
     std::uint32_t droppedTotal_ = 0;
 };
 }
