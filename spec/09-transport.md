@@ -1,0 +1,7 @@
+# ARP Plugin Specification v2 - Transport and Synchronization
+
+## 10. Transport and Synchronization
+
+The sequencer runs host-synchronized. The sequencer follows start and stop of the host transport. On transport start, all lanes reset to step 1. On transport stop, all lanes stop immediately, and all sounding notes receive Note-Offs. Without a running host transport, all lanes are silent; the plugin has no internal clock as a fallback. The sources (chord and channel notes) always reflect the live held-note state: keys held at transport start drive the lanes immediately. Only latch memory is cleared at transport stop (Section 4.6).
+
+The step position of a lane is defined as (playhead beats − lane phase offset) mod loop length, in beats (musical time, PPQ), not in samples. The phase offset is set by transport start (the playhead maps to step 1) and by step count or grid changes (Section 5.4). Since positions and note lengths are defined in beats, tempo changes take effect automatically and immediately on step positions and on the Note-Off times of notes already sounding. Any playhead discontinuity while the transport keeps running (a backward move, or a forward jump beyond one buffer, for example a host loop wrap or locate) sends Note-Offs for all sounding notes, applies all pending changes (Sections 4.4, 11), and re-derives the lane position from the playhead. Only transport start sets the phase offset to map the playhead to step 1. Events are sent with sample-accurate offsets within the buffer.
