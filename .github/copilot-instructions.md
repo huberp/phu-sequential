@@ -13,12 +13,12 @@ VST3 MIDI arpeggiator sequencer (C++20, JUCE only in `src/`, Catch2 v3 tests).
 
 ## Navigate cheaply (do NOT read whole docs)
 
-[docs/README.md](../docs/README.md) (~42k tokens), `docs/test-matrix.md` (~9k) and [spec/README.md](../spec/README.md) (~7k) are large. Read only what you need:
+The README files are small TOCs (~2.3–2.7 KB); the architecture and spec sub-docs are large. Read only what you need:
 
-1. Open `docs/module-map.md` — one row per module: architecture heading, source files, tests, spec §, decisions D-nn, dependencies.
+1. Open `docs/module-map.md` (~9 KB) — one row per module: architecture heading, source files, tests, spec §, decisions D-nn, dependencies. This is injected at session start and is the main navigation entry point.
 2. Find the section by heading, then read only that range:
    `grep -n '^### 4.3' docs/architecture/04-arpeggiator-modules.md` → `view` with `view_range`.
-3. Spec sections: `grep -n '^## ' spec/*.md`; test requirements: `grep -n '§9' docs/test-matrix.md` (rows grouped by spec §).
+3. Spec sections: `grep -n '^## ' spec/*.md`; test requirements: `grep -n '§9' docs/test-matrix.md` (~34 KB; rows grouped by spec §).
 4. Decisions: `grep -n 'D-14' docs/architecture/10-design-decisions.md` (index in architecture §10).
 5. Per-directory orientation: `lib/sequencing/README.md`, `lib/arpeggiator/README.md`, `src/README.md`, `tests/README.md`.
 

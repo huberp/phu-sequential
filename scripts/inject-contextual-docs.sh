@@ -1,105 +1,91 @@
 #!/usr/bin/env bash
 # inject-contextual-docs.sh
-# Dynamically inject relevant documentation based on user's prompt
-# for GitHub Copilot Cloud Hooks
+# userPromptSubmitted hook: inject small, relevant navigation hints based on the prompt.
+# stdin:  JSON {"prompt": "..."}
+# stdout: {"additionalContext": "..."} or {} when nothing matches.
+# Token policy: never inline large docs; emit module-map rows and file pointers, capped at MAX_BYTES.
+# Portable to bash 3.2 (macOS): no associative arrays. Requires jq.
 
 set -euo pipefail
 
-# Read the entire input (JSON with prompt)
-INPUT=$(cat)
+MAX_BYTES=8000
 
-# Extract the prompt and convert to lowercase for matching
-PROMPT=$(echo "$INPUT" | jq -r '.prompt // ""' 2>/dev/null | tr '[:upper:]' '[:lower:]')
-
-# If we can't parse the prompt, fall back to TOC injection
+PROMPT=$(jq -r '.prompt // ""' 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)
 if [ -z "$PROMPT" ]; then
-  echo '{"additionalContext": "Unable to parse prompt. See spec/README.md and docs/README.md for documentation."}'
+  echo '{}'
   exit 0
 fi
 
-# Define mapping of keywords to documentation files
-# Format: KEYWORD=filepath
-declare -A DOC_MAP=(
-  ["sequencer"]="spec/03-sequencer-lanes.md"
-  ["lane"]="spec/03-sequencer-lanes.md"
-  ["lanes"]="spec/03-sequencer-lanes.md"
-  ["timing"]="spec/04-timing.md"
-  ["step"]="spec/05-steps.md"
-  ["steps"]="spec/05-steps.md"
-  ["velocity"]="spec/06-velocity.md"
-  ["output routing"]="spec/07-output-routing.md"
-  ["voice"]="spec/08-voice-management.md"
-  ["transport"]="spec/09-transport.md"
-  ["live change"]="spec/10-live-changes.md"
-  ["parameter"]="spec/11-parameters.md"
-  ["state"]="spec/12-state-presets.md"
-  ["preset"]="spec/12-state-presets.md"
-  ["ui"]="spec/13-ui.md"
-  ["implementation"]="spec/14-implementation.md"
-  ["bypass"]="spec/19-bypass.md"
-  ["m01"]="docs/architecture/03-sequencing-modules.md"
-  ["m02"]="docs/architecture/03-sequencing-modules.md"
-  ["m03"]="docs/architecture/03-sequencing-modules.md"
-  ["m04"]="docs/architecture/03-sequencing-modules.md"
-  ["m05"]="docs/architecture/03-sequencing-modules.md"
-  ["m06"]="docs/architecture/03-sequencing-modules.md"
-  ["m07"]="docs/architecture/03-sequencing-modules.md"
-  ["m08"]="docs/architecture/03-sequencing-modules.md"
-  ["m09"]="docs/architecture/03-sequencing-modules.md"
-  ["m10"]="docs/architecture/03-sequencing-modules.md"
-  ["m11"]="docs/architecture/03-sequencing-modules.md"
-  ["m12"]="docs/architecture/04-arpeggiator-modules.md"
-  ["m13"]="docs/architecture/04-arpeggiator-modules.md"
-  ["m14"]="docs/architecture/04-arpeggiator-modules.md"
-  ["m15"]="docs/architecture/04-arpeggiator-modules.md"
-  ["m16"]="docs/architecture/04-arpeggiator-modules.md"
-  ["m17"]="docs/architecture/04-arpeggiator-modules.md"
-  ["m18"]="docs/architecture/03-sequencing-modules.md"
-  ["m19"]="docs/architecture/06-juce-adapter.md"
-  ["m20"]="docs/architecture/06-juce-adapter.md"
-  ["m21"]="docs/architecture/06-juce-adapter.md"
-  ["m22"]="docs/architecture/06-juce-adapter.md"
-  ["m23"]="docs/architecture/06-juce-adapter.md"
-  ["m24"]="docs/architecture/06-juce-adapter.md"
-  ["juce"]="docs/architecture/06-juce-adapter.md"
-  ["adapter"]="docs/architecture/06-juce-adapter.md"
-  ["threading"]="docs/architecture/07-threading.md"
-  ["build"]="docs/architecture/08-build-decisions.md"
-  ["cmake"]="docs/architecture/08-build-decisions.md"
-  ["ci"]="docs/architecture/08-build-decisions.md"
-  ["test"]="docs/architecture/11-testing-architecture.md"
-  ["design decision"]="docs/architecture/10-design-decisions.md"
-  ["ambiguity"]="docs/architecture/12-spec-ambiguities.md"
+has_word() { printf '%s' "$PROMPT" | grep -Eqiw "$1"; }
+
+# Topic rules: "<ERE of whole words>|<file>|<hint>"
+RULES=(
+  'sequencers?|lanes?|latch|channel mode|chord.follow|spec/03-sequencer-lanes.md|spec §4'
+  'timing|grid|swing|subdivision|spec/04-timing.md|spec §5'
+  'steps?|gate|spec/05-steps.md|spec §6'
+  'velocity|spec/06-velocity.md|spec §7'
+  'output routing|transpose|spec/07-output-routing.md|spec §8'
+  'voices?|note-?offs?|spec/08-voice-management.md|spec §9'
+  'transport|spec/09-transport.md|spec §10'
+  'live changes?|spec/10-live-changes.md|spec §11'
+  'parameters?|automation|spec/11-parameters.md|spec §12'
+  'state|presets?|spec/12-state-presets.md|spec §13'
+  'ui|editor|spec/13-ui.md|spec §14'
+  'implementation|spec/14-implementation.md|spec §15-16'
+  'robustness|real-?time|spec/15-robustness.md|spec §17'
+  'testability|spec/16-testability.md|spec §18'
+  'code style|spec/17-code-style.md|spec §19'
+  'initial state|defaults?|spec/18-initial-state.md|spec §20'
+  'bypass|spec/19-bypass.md|spec §21'
+  'input processing|chords?|channel filter|pass-?through|spec/02-input-processing.md|spec §3'
+  'arp|arpeggiator|docs/architecture/04-arpeggiator-modules.md|M12-M17'
+  'juce|adapters?|docs/architecture/06-juce-adapter.md|M19-M24'
+  'threading|docs/architecture/07-threading.md|arch §7'
+  'build|cmake|ci|docs/architecture/08-build-decisions.md|arch §8'
+  'tests?|docs/architecture/11-testing-architecture.md|arch §11 (rows: docs/test-matrix.md)'
+  'design decisions?|docs/architecture/10-design-decisions.md|D-n index'
+  'ambiguit(y|ies)|docs/architecture/12-spec-ambiguities.md|A-n'
 )
 
-# Collect matching documents
-MATCHED_FILES=()
-
-for keyword in "${!DOC_MAP[@]}"; do
-  if echo "$PROMPT" | grep -qi "$keyword"; then
-    file="${DOC_MAP[$keyword]}"
-    # Avoid duplicates
-    if [[ ! " ${MATCHED_FILES[@]} " =~ " ${file} " ]]; then
-      MATCHED_FILES+=("$file")
-    fi
+OUT=""
+POINTERS=""
+for rule in "${RULES[@]}"; do
+  hint=${rule##*|}; rest=${rule%|*}
+  file=${rest##*|}; words=${rest%|*}
+  [ -f "$file" ] || continue
+  if has_word "$words"; then
+    case "$POINTERS" in *"$file"*) continue ;; esac
+    POINTERS+="- $file ($hint)"$'\n'
   fi
 done
 
-# Build context using jq for proper JSON escaping
-if [ ${#MATCHED_FILES[@]} -gt 0 ]; then
-  CONTEXT="## Relevant Documentation\n\n"
-  for file in "${MATCHED_FILES[@]}"; do
-    if [ -f "$file" ]; then
-      filename=$(basename "$file")
-      CONTEXT+="### $filename\n\n"
-      CONTEXT+="$(cat "$file")\n\n"
-      CONTEXT+="---\n\n"
-    fi
-  done
-  CONTEXT+="\nTip: See spec/README.md and docs/README.md for full table of contents."
-else
-  CONTEXT="See spec/README.md for specification details and docs/README.md for architecture. Ask about specific topics like 'sequencer lanes', 'M01', 'timing', etc."
+ROWS=""
+i=1
+while [ "$i" -le 24 ]; do
+  id=$(printf 'm%02d' "$i")
+  if has_word "$id"; then
+    row=$(grep -i "^| ${id} " docs/module-map.md 2>/dev/null || true)
+    [ -n "$row" ] && ROWS+="$row"$'\n'
+  fi
+  i=$((i + 1))
+done
+
+if [ -z "$POINTERS" ] && [ -z "$ROWS" ]; then
+  echo '{}'
+  exit 0
 fi
 
-# Output JSON with additionalContext - use jq to properly escape
-jq -n --arg ctx "$CONTEXT" '{"additionalContext": $ctx}'
+if [ -n "$ROWS" ]; then
+  OUT+="## Module rows (docs/module-map.md)"$'\n\n'
+  OUT+=$(sed -n '9,10p' docs/module-map.md)$'\n'"$ROWS"$'\n'
+fi
+if [ -n "$POINTERS" ]; then
+  OUT+="## Relevant docs (do not read whole files)"$'\n'"$POINTERS"
+fi
+OUT+=$'\n'"Read only needed ranges: grep -n '^##' <file>, then view with view_range."$'\n'
+
+if [ "${#OUT}" -gt "$MAX_BYTES" ]; then
+  OUT="${OUT:0:$MAX_BYTES}"$'\n... (truncated)\n'
+fi
+
+jq -n --arg ctx "$OUT" '{"additionalContext": $ctx}'
