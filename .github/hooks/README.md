@@ -5,7 +5,7 @@ This directory contains hooks that automatically inject relevant project documen
 ## Purpose
 
 To improve token efficiency and AI agent effectiveness by:
-- Injecting documentation context automatically
+- Injecting documentation context automatically at session start
 - Providing relevant docs based on user prompts
 - Reducing the need for manual prompt engineering
 
@@ -14,14 +14,15 @@ To improve token efficiency and AI agent effectiveness by:
 ### 1. `sessionStart` Hook
 - **Script**: `scripts/inject-docs.sh`
 - **Trigger**: At the start of every Copilot session
-- **Action**: Injects the Table of Contents from both specification and architecture documentation
-- **Output**: ~5KB of navigation context
+- **Action**: Injects the Table of Contents from the specification and the module map (quick reference for modules M01–M24)
+- **Output**: ~11.7 KB of navigation context (spec TOC + module-map + navigation notes)
 
 ### 2. `userPromptSubmitted` Hook  
 - **Script**: `scripts/inject-contextual-docs.sh`
 - **Trigger**: When user submits a prompt
-- **Action**: Dynamically injects relevant documentation based on keywords in the prompt
-- **Output**: Only the specific documentation files that match the user's query
+- **Action**: Dynamically injects relevant documentation based on whole-word keyword matching in the prompt
+- **Output**: Documentation sections matching the user's query (up to 8000 bytes); empty object when nothing matches
+- **Behavior**: Matches keywords to architecture sections (M01–M24, threading, build, test, design decisions) and specific spec documents (sequencer, timing, steps, velocity, voice, transport)
 
 ## Keyword Mapping
 
@@ -47,9 +48,9 @@ The `inject-contextual-docs.sh` script maps keywords to specific documentation f
 
 | Scenario | Without Hooks | With Hooks | Savings |
 |----------|---------------|------------|---------|
-| General question | ~195KB (both docs) | ~5KB (TOCs) | 97% |
-| Specific topic (e.g., sequencer) | ~25KB (full spec) | ~3.5KB (specific file) | 86% |
-| Module question (e.g., M01) | ~170KB (full arch) | ~36KB (specific file) | 79% |
+| Session start | ~195KB (full docs) | ~11.7KB (spec TOC + module-map) | 94% |
+| Specific prompt (e.g., sequencer) | ~25KB (full spec) | ~8KB (capped specific files) | 68% |
+| Module question (e.g., M01) | ~170KB (full arch) | Pointer to module-map row + architecture section | 79%+ |
 
 ## Requirements
 
