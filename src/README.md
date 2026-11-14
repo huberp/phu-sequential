@@ -30,4 +30,4 @@
 - `BlockInput`, `BlockOutput`, `BlockResult`: portable block I/O (from `lib/arpeggiator`)
 - JUCE: `juce::AudioProcessor`, `juce::MidiBuffer`, `juce::AudioBuffer<float>`
 
-**See** `docs/architecture.md` (grep `-n '^### 6.'`), `spec/arp-spec.md` (§6–14) for architecture and feature roadmap.
+**See** [docs/architecture/06-juce-adapter.md](../docs/architecture/06-juce-adapter.md) (grep `-n '^### 6.'`), [spec/README.md](../spec/README.md) (§6–14) for architecture and feature roadmap.

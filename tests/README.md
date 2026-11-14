@@ -11,7 +11,7 @@
 | Support | `support/AllocationGuard.h`, `support/ScenarioRunner.h` |
 
 - `Mxx`: Module ID (e.g., `M07` = HeldNoteTracker)
-- `REQ-n.m-k`: Spec requirement (§n.m, item k); trace via `spec/arp-spec.md`
+- `REQ-n.m-k`: Spec requirement (§n.m, item k); trace via [spec/README.md](../spec/README.md) (split by section)
 
 ## Support utilities
 

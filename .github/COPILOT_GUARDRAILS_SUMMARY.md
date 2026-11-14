@@ -363,7 +363,7 @@ jobs:
 - Add comments at top of files:
   ```cpp
   // COPILOT: This is M01 Constants module. Only use inline constexpr. No JUCE headers.
-  // COPILOT: All values must match spec/arp-spec.md
+  // COPILOT: All values must match spec/README.md
   ```
 - Copilot reads these and adjusts suggestions
 

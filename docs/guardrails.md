@@ -29,8 +29,8 @@ This document describes the quality assurance mechanisms in place for the phu-se
 The Copilot instructions provide AI assistants with:
 
 1. **Primary References**
-   - `spec/arp-spec.md` - Single source of truth for behavior
-   - `docs/architecture.md` - Directory layout, targets, namespaces, interfaces
+   - [spec/README.md](../spec/README.md) - Single source of truth for behavior
+   - [docs/README.md](../docs/README.md) - Directory layout, targets, namespaces, interfaces
 
 2. **C++ Best Practices**
    - Code style (naming, includes, namespaces)
@@ -527,12 +527,12 @@ genhtml coverage.info --output-directory coverage-report
 **For Every PR**:
 
 1. **Spec Compliance**
-   - [ ] Behavior matches `spec/arp-spec.md`
+   - [ ] Behavior matches [spec/README.md](../spec/README.md)
    - [ ] All spec sections referenced in code comments
    - [ ] Deviations documented and justified
 
 2. **Architecture Compliance**
-   - [ ] Follows `docs/architecture.md`
+   - [ ] Follows [docs/README.md](../docs/README.md)
    - [ ] Module boundaries respected (M01-M24)
    - [ ] Dependency order maintained
    - [ ] No JUCE headers in lib/

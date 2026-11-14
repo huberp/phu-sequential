@@ -1,7 +1,7 @@
 # phu-sequential — Architecture
 
 **Directory layout, targets, namespaces, interfaces.** Source of truth for implementation.
-If this document and the spec disagree, **the spec wins** (see `spec/README.md`).
+If this document and the spec disagree, **the spec wins** (see [spec/README.md](../spec/README.md)).
 
 This document has been split into focused sub-documents for better token efficiency and navigation.
 

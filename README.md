@@ -1,6 +1,6 @@
 # phu-sequential
 
-A VST3 MIDI effect arpeggiator sequencer. See `spec/arp-spec.md` for the complete specification.
+A VST3 MIDI effect arpeggiator sequencer. See [spec/README.md](spec/README.md) for the complete specification.
 
 ## Prerequisites
 
