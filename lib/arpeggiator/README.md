@@ -39,5 +39,5 @@ lib/arpeggiator/
 - Real-time safe: preallocates, no locks, no exceptions
 - Lanes independent, share global `VoiceRegistry` and output buffer
 
-**See** `docs/architecture.md` (§4), `spec/arp-spec.md` (§4–7)
+**See** [docs/architecture/04-arpeggiator-modules.md](../docs/architecture/04-arpeggiator-modules.md) (§4), [spec/README.md](../spec/README.md) (§4–7)
 

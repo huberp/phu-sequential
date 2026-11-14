@@ -34,5 +34,5 @@ lib/sequencing/
 - No JUCE; portable time units (`Beats`, `TickCount`)
 - Thread-safe via immutable snapshots, never locks
 
-**See** `docs/architecture.md` (§3), `spec/arp-spec.md` (§3–4)
+**See** [docs/architecture/03-sequencing-modules.md](../docs/architecture/03-sequencing-modules.md) (§3), [spec/README.md](../spec/README.md) (§3–4)
 
