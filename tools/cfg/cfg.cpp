@@ -21,6 +21,13 @@ std::vector<std::string> FnStack;
 
 static llvm::cl::OptionCategory MyToolCategory("cfg options");
 
+// CommonOptionsParser has a protected constructor, so we inherit from it
+class MyCommonOptionsParser : public CommonOptionsParser {
+public:
+    MyCommonOptionsParser(int &argc, const char **argv, llvm::cl::OptionCategory &Category)
+        : CommonOptionsParser(argc, argv, Category) {}
+};
+
 std::string qname(Decl *D) {
   if (!D) return "";
   if (auto *ND = dyn_cast<NamedDecl>(D)) {
@@ -67,7 +74,7 @@ class C : public ASTConsumer { V Visitor; public: void HandleTranslationUnit(AST
 class A : public ASTFrontendAction { public: std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI, StringRef) override { return std::make_unique<C>(); } };
 
 int main(int argc, const char **argv) {
-  CommonOptionsParser OP(argc, argv, MyToolCategory);
+  MyCommonOptionsParser OP(argc, argv, MyToolCategory);
   ClangTool T(OP.getCompilations(), OP.getSourcePathList());
   if (T.run(newFrontendActionFactory<A>().get()) == 0) {
     for (const auto &E : CG) {
