@@ -24,6 +24,13 @@ std::vector<std::string> CurrentFunctionStack;
 
 static llvm::cl::OptionCategory MyToolCategory("callgraph options");
 
+// CommonOptionsParser has a protected constructor, so we inherit from it
+class MyCommonOptionsParser : public CommonOptionsParser {
+public:
+    MyCommonOptionsParser(int &argc, const char **argv, llvm::cl::OptionCategory &Category)
+        : CommonOptionsParser(argc, argv, Category) {}
+};
+
 // Get qualified name for a Decl
 std::string getQualifiedName(Decl *D) {
   if (!D) return "";
@@ -136,7 +143,7 @@ void outputCallGraph() {
 }
 
 int main(int argc, const char **argv) {
-  CommonOptionsParser OptionsParser(argc, argv, MyToolCategory);
+  MyCommonOptionsParser OptionsParser(argc, argv, MyToolCategory);
   ClangTool Tool(OptionsParser.getCompilations(), OptionsParser.getSourcePathList());
   
   int Result = Tool.run(newFrontendActionFactory<CallGraphAction>().get());
