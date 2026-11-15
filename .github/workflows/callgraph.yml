@@ -1,0 +1,38 @@
+name: Call Graph
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install LLVM/Clang 17
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm-17 clang-17 libclang-17-dev libclang-common-17-dev
+
+      - name: Configure callgraph tool
+        run: |
+          mkdir -p build-tools
+          cd build-tools
+          cmake -DCMAKE_CXX_COMPILER=clang++-17 -DCMAKE_C_COMPILER=clang-17 ../tools/callgraph
+
+      - name: Build callgraph tool
+        run: |
+          cd build-tools
+          cmake --build . -j$(nproc)
+
+      - name: Generate call graph
+        run: |
+          mkdir -p callgraph-output
+          find src lib -name "*.cpp" -o -name "*.h" -o -name "*.hpp" > filelist.txt
+          ./build-tools/callgraph -p . @filelist.txt > callgraph-output/callgraph.txt 2>&1 || true
+
+      - name: Upload call graph
+        uses: actions/upload-artifact@v4
+        with:
+          name: callgraph
+          path: callgraph-output/callgraph.txt
