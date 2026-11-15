@@ -27,17 +27,10 @@ include_directories(
 
 add_definitions(${LLVM_DEFINITIONS})
 
-# Add the callgraph tool
+# Add the callgraph tool - link only against clangTooling
 add_executable(callgraph callgraph.cpp)
 
 target_link_libraries(callgraph
   PRIVATE
   clangTooling
-  clangBasic
-  clangAST
-  clangLex
-  clangParse
-  clangSema
-  LLVMOption
-  LLVMSupport
 )
