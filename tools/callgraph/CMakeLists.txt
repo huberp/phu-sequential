@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.15)
 project(callgraph LANGUAGES CXX C)
 
+# Disable optional LLVM dependencies that may not be installed
+set(LLVM_ENABLE_FFI OFF CACHE BOOL "Disable FFI")
+set(LLVM_ENABLE_TERMINFO OFF CACHE BOOL "Disable Terminfo")
+set(LLVM_ENABLE_LIBEDIT OFF CACHE BOOL "Disable LibEdit")
+
 # Find LLVM/Clang - try multiple approaches
 find_package(LLVM 17 CONFIG)
 find_package(Clang 17 CONFIG)
