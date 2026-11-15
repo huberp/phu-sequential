@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(callgraph LANGUAGES CXX)
+project(callgraph LANGUAGES CXX C)
 
 # Find LLVM/Clang - try multiple approaches
 find_package(LLVM 17 CONFIG)
