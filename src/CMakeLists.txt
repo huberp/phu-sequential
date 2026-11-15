@@ -17,6 +17,12 @@ target_sources(phu-sequential PRIVATE
     PluginProcessor.h
     PluginEditor.cpp
     PluginEditor.h
+    HostTransport.cpp
+    HostTransport.h
+    MidiConversion.cpp
+    MidiConversion.h
+    BlockEngine.cpp
+    BlockEngine.h
 )
 
 target_link_libraries(phu-sequential
