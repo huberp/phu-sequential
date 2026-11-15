@@ -1,5 +1,8 @@
 #pragma once
 
+#include "BlockEngine.h"
+#include "arpeggiator/SequencerConfiguration.h"
+
 #include <juce_audio_processors/juce_audio_processors.h>
 
 class PluginProcessor : public juce::AudioProcessor
@@ -11,7 +14,12 @@ public:
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
 
+    // [RT]
     void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+    // [RT]
+    void processBlockBypassed(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+    using juce::AudioProcessor::processBlock;
+    using juce::AudioProcessor::processBlockBypassed;
 
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override;
@@ -33,5 +41,12 @@ public:
     void setStateInformation(const void* data, int sizeInBytes) override;
 
 private:
+    phu::plugin::BlockEngine engine_;
+    phu::arpeggiator::SequencerConfiguration config_ =
+        phu::arpeggiator::clampConfiguration(phu::arpeggiator::defaultSequencerConfiguration());
+    double sampleRate_ = 44100.0;
+
+    void processInternal(juce::AudioBuffer<float>&, juce::MidiBuffer&, bool bypassed);
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };

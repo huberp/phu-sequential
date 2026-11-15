@@ -1,4 +1,5 @@
 #include "PluginProcessor.h"
+#include "HostTransport.h"
 #include "PluginEditor.h"
 
 PluginProcessor::PluginProcessor() : juce::AudioProcessor(
@@ -60,17 +61,32 @@ void PluginProcessor::changeProgramName(int, const juce::String&)
 {
 }
 
-void PluginProcessor::prepareToPlay(double, int)
+void PluginProcessor::prepareToPlay(double sampleRate, int)
 {
+    sampleRate_ = sampleRate;
+    engine_.prepare();
 }
 
 void PluginProcessor::releaseResources()
 {
 }
 
-void PluginProcessor::processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&)
+void PluginProcessor::processInternal(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi, bool bypassed)
 {
-    // MIDI effect: pass through all MIDI events unchanged.
+    const auto transport = phu::plugin::readHostTransport(getPlayHead());
+    engine_.process(midi, buffer.getNumSamples(), transport, sampleRate_, bypassed, config_);
+}
+
+void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
+{
+    juce::ScopedNoDenormals noDenormals;
+    processInternal(buffer, midi, false);
+}
+
+void PluginProcessor::processBlockBypassed(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
+{
+    juce::ScopedNoDenormals noDenormals;
+    processInternal(buffer, midi, true);
 }
 
 juce::AudioProcessorEditor* PluginProcessor::createEditor()

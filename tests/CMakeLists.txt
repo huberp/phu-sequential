@@ -43,6 +43,48 @@ set_target_properties(SequentialCoreTests PROPERTIES
 include(Catch)
 catch_discover_tests(SequentialCoreTests)
 
+# Catch2 string_view linker guard for SequentialCoreTests
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -P ${PROJECT_SOURCE_DIR}/scripts/check_catch2_string_view.cmake
+    RESULT_VARIABLE _catch2_guard_result
+    OUTPUT_VARIABLE _catch2_guard_output
+    ERROR_VARIABLE _catch2_guard_output
+)
+if(NOT _catch2_guard_result EQUAL 0)
+    message(FATAL_ERROR "${_catch2_guard_output}")
+endif()
+
+add_executable(SequentialAdapterTests
+    support/AllocationGuard.cpp
+    adapter/HostTransportTests.cpp
+    adapter/MidiConversionTests.cpp
+    adapter/BlockEngineTests.cpp
+    ../src/HostTransport.cpp
+    ../src/MidiConversion.cpp
+    ../src/BlockEngine.cpp
+)
+
+target_include_directories(SequentialAdapterTests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src
+)
+
+target_link_libraries(SequentialAdapterTests PRIVATE
+    SequentialCoreLib
+    Catch2::Catch2WithMain
+    juce::juce_audio_basics
+)
+
+set_target_properties(SequentialAdapterTests PROPERTIES
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+)
+
+# Enable ctest discovery for Catch2
+include(Catch)
+catch_discover_tests(SequentialAdapterTests)
+
 # Catch2 string_view linker guard (cpp.instructions.md item 11): runs at configure time so it fails before any compile.
 # Not a CTest test: CTest reported "Not Run" for it on macOS runners.
 execute_process(

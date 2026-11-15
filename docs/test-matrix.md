@@ -162,7 +162,7 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 | REQ-9.1-4 | 9.1 | Cross-lane retrigger and ownership transfer (edge, §18) | M11,M17 | three owners chained L1→L2→L3 → one Note-Off at L3 end | #9,#11 | todo |
 | REQ-9.1-5 | 9.1 | Retrigger vs pass-through (both directions) | M11,M16 | Thru on, key 60 ch1 passed; lane triggers 60 ch1 → [NOff, NOn]; key NOff suppressed; lane's end sends NOff. Reverse: lane voice sounding, passed NOn 60 → same retrigger | #9,#11 | todo |
 | REQ-9.1-6 | 9.1 | Same pitch, different channel: independent voices | M11 | 60 ch1 and 60 ch2 → no retrigger | #9 | todo |
-| REQ-9.1-7 | 9.1 | Note-Off velocity 0 | M11,M19 | all generated Note-Offs vel 0 | #9,#12 | todo |
+| REQ-9.1-7 | 9.1 | Note-Off velocity 0 | M11,M19 | all generated Note-Offs vel 0 | #9,#12 | done |
 | REQ-9.1-8 | 9.1 | Same lane overlap same pitch (gate > 100, idx 0): retrigger | M11,M14 | gate 200: each step retriggers pitch; one Off per sound end | #10 | todo |
 | REQ-9.2-1 | 9.2 | Release stops lane at once; Note-Offs for all sounding lane notes | M14 | gate 200 (2 overlapping); NOff source → both Offs at once | #10 | todo |
 | REQ-9.2-2 | 9.2 | Applies to both input modes | M14 | chord-follow and channel mode variants | #10 | todo |
@@ -273,12 +273,12 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 | REQ-16.3-1 | 16.3 | No magic constants (named, central; velocity limits in one place) | M01 | review checklist; grep for 127/32/16/8 outside `Constants.h` | #5 | n/t: code review/grep script, not a runtime test |
 | REQ-16.4-1 | 16.4 | Velocity modes / index selection as registered strategies, no switch chains | M08,M09 | registry lists all options; adding a test strategy needs no existing code change | #7,#8 | todo |
 | REQ-16.5-1 | 16.5 | One responsibility per module, narrow interfaces | all | `n/t`: design review | – | n/t: architectural review |
-| REQ-17-1 | 17 | No allocation/locks/blocking in audio path | M17,M19 | `AllocationGuard` over every scenario path (start/stop/locate/bypass/max events) → 0 `new` | #11,#12 | todo |
+| REQ-17-1 | 17 | No allocation/locks/blocking in audio path | M17,M19 | `AllocationGuard` over every scenario path (start/stop/locate/bypass/max events) → 0 `new` | #11,#12 | done |
 | REQ-17-2 | 17 | UI→audio via atomics/lock-free | M18 | triple buffer concurrent stress (TSan) | #12 | todo |
 | REQ-17-3 | 17 | Invalid inputs rejected or clamped | M05,M12 | out-of-range config values, NaN tempo, negative sample count | #5,#10,#11 | todo |
 | REQ-17-4 | 17 | No exceptions in audio path | M17 | build with `-fno-exceptions` for core or `noexcept` static asserts | #11 | todo |
 | REQ-17-5 | 17 | RAII, no raw new/delete | all | `n/t`: lint (clang-tidy `cppcoreguidelines-owning-memory`) | #4 | n/t: static analysis |
-| REQ-17-6 | 17 | Odd host input: 0-sample blocks, huge event counts, unsorted events | M17,M19 | arch §11 adapter cases | #11,#12 | todo |
+| REQ-17-6 | 17 | Odd host input: 0-sample blocks, huge event counts, unsorted events | M17,M19 | arch §11 adapter cases | #11,#12 | done |
 
 ## §18 Edge cases (all must be tests)
 
@@ -316,7 +316,7 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 
 | ID | § | Rule | Module | Scenario | Issue | Status |
 |---|---|---|---|---|---|---|
-| REQ-21-1 | 21 | Bypass: all input events passed unchanged | M17,M19 | any note/CC input → identical output; lanes silent | #11,#12 | todo |
+| REQ-21-1 | 21 | Bypass: all input events passed unchanged | M17,M19 | any note/CC input → identical output; lanes silent | #11,#12 | done |
 | REQ-21-2 | 21 | Entering bypass: Note-Offs for passed-through and sounding lane notes; tracking cleared | M17,M16 | Thru on key held + lane sounding; bypass → Offs for both | #11 | todo |
 | REQ-21-3 | 21 | Lanes stop, latch ends | M14,M17 | latch memory cleared | #11 | todo |
 | REQ-21-4 | 21 | Leaving bypass: position derived from playhead, no reset to step 1 | M13,M17 | bypass at beat 3.1, off at 5.6 → step index from formula with old offset | #11 | todo |

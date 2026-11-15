@@ -4,6 +4,8 @@
 
 ### 6.1 M19 Processor, MIDI conversion, host transport — (#12)
 
+> **Implementation note (#12):** the audio-thread block logic (steps 0, 2-5) lives in `BlockEngine` (`src/BlockEngine.h/.cpp`, owns `core_`, `coreOutput_`, `inputChunk_`, `outputScratch_`, `outputOpen_`, `deferredInput_`) and `PluginProcessor` delegates to it with a temporary default configuration (§20) until M20/M21 exist. Step 1 (state/params), TripleBuffers and playback status are not yet implemented. JUCE exposes no public `MidiBuffer::data.getNumAllocated()`, so `OutputMidiWriter` tracks the byte budget logically against `outputMidiReserveBytes`.
+
 ```cpp
 // HostTransport.h
 namespace phu::plugin {
