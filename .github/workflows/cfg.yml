@@ -1,0 +1,14 @@
+name: CFG
+on: workflow_dispatch
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y llvm-17 clang-17 libclang-17-dev
+      - run: mkdir build && cd build && cmake -DCMAKE_CXX_COMPILER=clang++-17 -DCMAKE_C_COMPILER=clang-17 ../tools/cfg && cmake --build . -j
+      - run: mkdir -p out && find src lib -name "*.cpp" -o -name "*.h" -o -name "*.hpp" > files.txt && ./cfg -p . @files.txt > out/cfg.txt 2>&1 || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfg
+          path: out/cfg.txt
