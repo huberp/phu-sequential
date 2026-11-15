@@ -9,5 +9,7 @@ set(LLVM_ENABLE_LIBEDIT OFF CACHE BOOL "Disable LibEdit")
 find_package(LLVM 17 CONFIG REQUIRED)
 find_package(Clang 17 CONFIG REQUIRED)
 include_directories(${LLVM_INCLUDE_DIRS} ${CLANG_INCLUDE_DIRS})
+
+# Link only against clangTooling - it will pull in necessary dependencies
 add_executable(cfg cfg.cpp)
-target_link_libraries(cfg PRIVATE clangTooling clangBasic clangAST clangLex clangParse clangSema LLVMOption LLVMSupport)
+target_link_libraries(cfg PRIVATE clangTooling)
