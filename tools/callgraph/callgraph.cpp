@@ -7,6 +7,7 @@
 #include <clang/Frontend/FrontendAction.h>
 #include <clang/Tooling/CommonOptionsParser.h>
 #include <clang/Tooling/Tooling.h>
+#include <llvm/Support/CommandLine.h>
 
 #include <map>
 #include <set>
@@ -21,17 +22,18 @@ std::map<std::string, std::set<std::string>> CallGraph;
 // Track current function/method context
 std::vector<std::string> CurrentFunctionStack;
 
+static llvm::cl::OptionCategory MyToolCategory("callgraph options");
+
 // Get qualified name for a Decl
 std::string getQualifiedName(Decl *D) {
   if (!D) return "";
   
   if (auto *ND = dyn_cast<NamedDecl>(D)) {
     std::string Name;
-    raw_string_ostream Stream(Name);
+    llvm::raw_string_ostream Stream(Name);
     PrintingPolicy Policy(D->getASTContext().getLangOpts());
     Policy.SuppressScope = false;
     Policy.SuppressTagKeyword = true;
-    Policy.AnonymousFieldDecl = false;
     ND->printQualifiedName(Stream, Policy);
     return Stream.str();
   }
@@ -90,13 +92,9 @@ public:
     return true;
   }
   
-  bool VisitCXXMemberCallExpr(CXXMemberCallExpr *CE) {
-    return VisitCallExpr(CE);
-  }
+  bool VisitCXXMemberCallExpr(CXXMemberCallExpr *CE) { return VisitCallExpr(CE); }
   
-  bool VisitCXXOperatorCallExpr(CXXOperatorCallExpr *CE) {
-    return VisitCallExpr(CE);
-  }
+  bool VisitCXXOperatorCallExpr(CXXOperatorCallExpr *CE) { return VisitCallExpr(CE); }
 
 private:
   ASTContext *Context;
@@ -138,7 +136,7 @@ void outputCallGraph() {
 }
 
 int main(int argc, const char **argv) {
-  CommonOptionsParser OptionsParser(argc, argv, "callgraph");
+  CommonOptionsParser OptionsParser(argc, argv, MyToolCategory);
   ClangTool Tool(OptionsParser.getCompilations(), OptionsParser.getSourcePathList());
   
   int Result = Tool.run(newFrontendActionFactory<CallGraphAction>().get());
