@@ -42,11 +42,11 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 |---|---|---|---|---|---|---|
 | REQ-4-1 | 4 | Exactly 8 lanes | M01,M12 | `laneCount == 8`; config has 8 lanes | #5,#10 | todo |
 | REQ-4-2 | 4 | Lane color: no effect on MIDI | M14 | two runs differing only in lane colors → identical output | #10,#14 | todo |
-| REQ-4-3 | 4 | Lane color persistence: 8 colors saved/loaded exactly (opaque RGB) | M21,M22 | set L1..L8 distinct RGB; state save → load → same 8 values; preset save → load likewise | #14 | todo |
-| REQ-4-4 | 4 | Lane color in state, not a host parameter | M20,M22 | color absent from APVTS param list; present in state XML | #13,#14 | todo |
-| REQ-4-5 | 4/20 | Default palette: 8 distinct colors in lane order | M01,M21 | `defaultLaneColor(i)` = palette[i]; all 8 distinct | #5,#14 | todo |
-| REQ-4-6 | 4/14 | Changing one lane's color leaves others unchanged | M21 | `setLaneColor(2, c)` → lanes ≠2 equal before | #14,#15 | todo |
-| REQ-4-7 | 4/13 | Color migration: older state without colors → defaults; invalid/missing channel clamped | M22 | v1 fixture w/o colors → palette; color attr 300 → 255 | #14 | todo |
+| REQ-4-3 | 4 | Lane color persistence: 8 colors saved/loaded exactly (opaque RGB) | M21,M22 | set L1..L8 distinct RGB; state save → load → same 8 values; preset save → load likewise | #14 | done |
+| REQ-4-4 | 4 | Lane color in state, not a host parameter | M20,M22 | color absent from APVTS param list; present in state XML | #13,#14 | done |
+| REQ-4-5 | 4/20 | Default palette: 8 distinct colors in lane order | M01,M21 | `defaultLaneColor(i)` = palette[i]; all 8 distinct | #5,#14 | done |
+| REQ-4-6 | 4/14 | Changing one lane's color leaves others unchanged | M21 | `setLaneColor(2, c)` → lanes ≠2 equal before | #14,#15 | done |
+| REQ-4-7 | 4/13 | Color migration: older state without colors → defaults; invalid/missing channel clamped | M22 | v1 fixture w/o colors → palette; color attr 300 → 255 | #14 | done |
 | REQ-4.1-1 | 4.1 | Lanes non-exclusive | M14,M17 | L1, L2 both idx 0, chord {60} → both output | #10,#11 | todo |
 | REQ-4.2-1 | 4.2 | idx ≥ chord size → silent | M08,M14 | chord {60,64}, L idx 2 → no output | #7,#10 | todo |
 | REQ-4.2-2 | 4.2 | Lane plays as soon as chord big enough | M08,M14 | idx 2, chord {60,64}; NOn 67 mid-step → plays from next step start | #7,#10 | todo |
@@ -102,7 +102,7 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 | REQ-5.2-10 | 5.2 | New text grid: step data transferred by position | M10,M21 | 3 steps (off,on,off) → 5 steps: first 3 kept, 2 default | #8,#14 | todo |
 | REQ-5.2-11 | 5.2 | Step start positions = prefix sums of lengths | M03 | "1/4,1/8,1/8" → 0, 1, 1.5, loop 2 | #5 | todo |
 | REQ-5.3-1 | 5.3 | Invalid entries flagged (index/range) for red marking | M05,M23 | parser returns per-entry errors with positions | #6,#15 | todo |
-| REQ-5.3-2 | 5.3 | Invalid grid not applied; last valid kept | M05,M21 | apply invalid → active grid unchanged | #6,#14 | todo |
+| REQ-5.3-2 | 5.3 | Invalid grid not applied; last valid kept | M05,M21 | apply invalid → active grid unchanged | #6,#14 | done |
 | REQ-5.4-1 | 5.4 | Step count 1–64, clamped | M12 | 0 → 1; 65 → 64 | #10 | todo |
 | REQ-5.4-2 | 5.4 | Loop length = count × step length | M03 | 7 × 1/8 = 3.5 beats | #5 | todo |
 | REQ-5.4-3 | 5.4 | Increase: new steps on, default vel | M10 | 4 → 8 | #8 | todo |
@@ -147,7 +147,7 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 | ID | § | Rule | Module | Scenario | Issue | Status |
 |---|---|---|---|---|---|---|
 | REQ-8-1 | 8 | Output channel 1–16; default 1; never auto-changed | M12,M14 | follow ch5, out ch stays 1; out ch 7 → events on ch 7 | #10 | todo |
-| REQ-8-2 | 8 | Out channel stored in state/presets | M22 | round-trip | #14 | todo |
+| REQ-8-2 | 8 | Out channel stored in state/presets | M22 | round-trip | #14 | done |
 | REQ-8-3 | 8 | Transpose −24…+24; out = in + transpose | M12,M14 | 60 + 12 = 72; clamp param 30 → 24 | #10 | todo |
 | REQ-8-4 | 8 | Pitch outside 0–127: not sent, no clamping | M14 | 120 + 24 → no event, no Note-Off; 5 − 24 → none | #10 | todo |
 | REQ-8-5 | 8 | Unique voice id per output note | M11 | two Note-Ons → distinct ids | #9 | todo |
@@ -227,16 +227,16 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 
 | ID | § | Rule | Module | Scenario | Issue | Status |
 |---|---|---|---|---|---|---|
-| REQ-13-1 | 13 | State contains params, text grids, colors, step data | M22 | fill all; save → load → equal | #14 | todo |
-| REQ-13-2 | 13 | Preset file = JUCE ValueTree XML, same scope incl. globals | M22 | save/load preset incl. Thru, Consume, chord ch | #14 | todo |
+| REQ-13-1 | 13 | State contains params, text grids, colors, step data | M22 | fill all; save → load → equal | #14 | done |
+| REQ-13-2 | 13 | Preset file = JUCE ValueTree XML, same scope incl. globals | M22 | save/load preset incl. Thru, Consume, chord ch | #14 | done |
 | REQ-13-3 | 13 | Factory presets ship and load | M24 | each factory preset loads cleanly | #16 | todo |
-| REQ-13-4 | 13 | User folder presets listed/loaded/saved | M22 | write to temp dir, list, load | #14 | todo |
-| REQ-13-5 | 13 | Version integer in state and presets | M22 | attribute present | #14 | todo |
-| REQ-13-6 | 13 | Older version migrated (state version migration, §18) | M22 | v1 fixture (each older version) → current | #14 | todo |
-| REQ-13-7 | 13 | Unknown fields ignored | M22 | extra attr/child | #14 | todo |
-| REQ-13-8 | 13 | Invalid values clamped | M22 | gate 999 → 200; ch 0 → 1 | #14 | todo |
-| REQ-13-9 | 13 | Newer version → safe default state | M22 | version = current+1 → defaults | #14 | todo |
-| REQ-13-10 | 13 | Corrupt/empty data → safe default, no crash | M22 | garbage bytes | #14 | todo |
+| REQ-13-4 | 13 | User folder presets listed/loaded/saved | M22 | write to temp dir, list, load | #14 | done |
+| REQ-13-5 | 13 | Version integer in state and presets | M22 | attribute present | #14 | done |
+| REQ-13-6 | 13 | Older version migrated (state version migration, §18) | M22 | v1 fixture (each older version) → current | #14 | done |
+| REQ-13-7 | 13 | Unknown fields ignored | M22 | extra attr/child | #14 | done |
+| REQ-13-8 | 13 | Invalid values clamped | M22 | gate 999 → 200; ch 0 → 1 | #14 | done |
+| REQ-13-9 | 13 | Newer version → safe default state | M22 | version = current+1 → defaults | #14 | done |
+| REQ-13-10 | 13 | Corrupt/empty data → safe default, no crash | M22 | garbage bytes | #14 | done |
 
 ## §14 UI
 
@@ -309,7 +309,7 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 | REQ-20-1 | 20 | Lane defaults: Base Timing, 1/16, straight, swing 0, 16 steps all on | M12,M21 | default config/doc | #10,#14 | todo |
 | REQ-20-2 | 20 | Vel mode incoming; chord-follow idx 0; out ch 1; transpose 0; gate 100; latch/mute off | M12 | default config | #10 | todo |
 | REQ-20-3 | 20 | Globals: chord ch 1, Thru off, Consume on | M20 | default params | #13 | done |
-| REQ-20-4 | 20 | Default lane colors = fixed palette in lane order | M01,M21 | see REQ-4-5 | #5,#14 | todo |
+| REQ-20-4 | 20 | Default lane colors = fixed palette in lane order | M01,M21 | see REQ-4-5 | #5,#14 | done |
 | REQ-20-5 | 20 | Fresh plugin, chord 60 held, T+ → 16th notes on 60, vel = input, ch 1 | M17 | end-to-end: NOn(1,60,100) @0 held, T+ @beat 0 → NOn @0, @6000, @12000 …; each NOff at the next step start (@6000, …), Off before On at equal sample | #11 | todo |
 
 ## §21 Bypass
