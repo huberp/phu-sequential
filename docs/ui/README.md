@@ -19,3 +19,5 @@ Rendered from the JUCE editor (offscreen, Linux) for comparison with the sketche
 ![editor default size](editor-screenshot-default.png)
 
 ![editor minimum size](editor-screenshot-min-size.png)
+
+CI renders fresh screenshots on every Linux build (`take-screenshot` input of `build-linux.yml`, CMake option `PHU_BUILD_SCREENSHOT_TOOL`, tool `tools/screenshot/ScreenshotMain.cpp`) and attaches them as the `editor-screenshots-linux-<arch>` artifact.

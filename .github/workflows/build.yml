@@ -18,11 +18,13 @@ jobs:
     uses: ./.github/workflows/build-linux.yml
     with:
       arch: x64
+      take-screenshot: true
 
   build-linux-arm64:
     uses: ./.github/workflows/build-linux.yml
     with:
       arch: arm64
+      take-screenshot: true
 
   build-macos-arm64:
     uses: ./.github/workflows/build-macos.yml
