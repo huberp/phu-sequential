@@ -1,11 +1,15 @@
 #include "PluginProcessor.h"
 #include "HostTransport.h"
+#include "ParameterLayout.h"
 #include "PluginEditor.h"
+#include "arpeggiator/ConfigurationBuilder.h"
 
 PluginProcessor::PluginProcessor() : juce::AudioProcessor(
     juce::AudioProcessor::BusesProperties()
         .withInput("Input", juce::AudioChannelSet::stereo(), true)
-        .withOutput("Output", juce::AudioChannelSet::stereo(), true))
+        .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
+      parameters_(*this, nullptr, "Parameters", phu::plugin::createParameterLayout()),
+      parameterReader_(parameters_)
 {
 }
 
@@ -74,7 +78,8 @@ void PluginProcessor::releaseResources()
 void PluginProcessor::processInternal(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi, bool bypassed)
 {
     const auto transport = phu::plugin::readHostTransport(getPlayHead());
-    engine_.process(midi, buffer.getNumSamples(), transport, sampleRate_, bypassed, config_);
+    const auto config = phu::arpeggiator::buildConfiguration(parameterReader_.read());
+    engine_.process(midi, buffer.getNumSamples(), transport, sampleRate_, bypassed, config);
 }
 
 void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
@@ -97,6 +102,11 @@ juce::AudioProcessorEditor* PluginProcessor::createEditor()
 bool PluginProcessor::hasEditor() const
 {
     return true;
+}
+
+juce::AudioProcessorParameter* PluginProcessor::getBypassParameter() const
+{
+    return parameters_.getParameter(juce::String(phu::plugin::parameter_ids::bypass.data()));
 }
 
 void PluginProcessor::getStateInformation(juce::MemoryBlock&)

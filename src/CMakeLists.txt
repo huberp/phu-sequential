@@ -23,6 +23,12 @@ target_sources(phu-sequential PRIVATE
     MidiConversion.h
     BlockEngine.cpp
     BlockEngine.h
+    ParameterIds.h
+    ParameterIds.cpp
+    ParameterLayout.h
+    ParameterLayout.cpp
+    ParameterReader.h
+    ParameterReader.cpp
 )
 
 target_link_libraries(phu-sequential

@@ -22,7 +22,7 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 | REQ-3.1-6 | 3.1 | Pedal logic equal for channel-mode lanes | M07,M08 | L2 channel 3; pedal ch3 on; NOn/NOff 60 ch3 → L2 keeps playing until pedal off | #7 | todo |
 | REQ-3.1-7 | 3.1 | Threshold: 63 off, 64 on | M07 | CC64=63 → no hold; 64 → hold | #7 | done |
 | REQ-3.2-1 | 3.2 | Chord-follow uses only chord input channel | M07,M08 | chord ch=2; NOn(1,60), NOn(2,64) → chord {64} | #7 | done |
-| REQ-3.2-2 | 3.2 | Chord input channel range 1–16, change takes effect | M07,M20 | change ch 1→5 mid-play; chord rebuilt from ch5 held notes | #7,#13 | todo |
+| REQ-3.2-2 | 3.2 | Chord input channel range 1–16, change takes effect | M07,M20 | change ch 1→5 mid-play; chord rebuilt from ch5 held notes | #7,#13 | done |
 | REQ-3.2-3 | 3.2 | Channel mode independent per lane | M08 | L1 ch3, L2 ch5; NOn ch3, ch5 → each lane own note | #7 | done |
 | REQ-3.3-1 | 3.3 | Thru off: no input notes out; Thru on: all 16 ch passed | M16 | Thru off: NOn → no output. Thru on: NOn ch1..16 → 16 outputs | #11 | todo |
 | REQ-3.3-2 | 3.3 | Consume on: followed channels not passed, even Thru on | M16 | Thru on, Consume on, chord ch1, L2 ch3: NOn ch1,3 blocked; ch2 passes | #11 | todo |
@@ -33,7 +33,7 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 | REQ-3.3-7 | 3.3 | CC, PB, AT, PC always passed, any Thru/Consume | M16 | Thru off Consume on: CC1, PB, AT, PC pass unchanged | #11,#12 | todo |
 | REQ-3.3-8 | 3.3 | CC64 passed and interpreted | M16,M07 | CC64 ch1 → in output and hold active | #11 | todo |
 | REQ-3.3-9 | 3.3 | CC120/CC123 only passed, no internal reset | M16,M11 | lane sounding; CC123 in → passed, lane notes unaffected | #11 | todo |
-| REQ-3.3-10 | 3.3 | Thru, Consume automatable | M20 | layout contains params, in param list | #13 | todo |
+| REQ-3.3-10 | 3.3 | Thru, Consume automatable | M20 | layout contains params, in param list | #13 | done |
 | REQ-3.4-1 | 3.4 | Sort ascending; idx 0 = lowest | M07,M08 | NOn 67,60,64 → idx0=60, idx1=64, idx2=67 | #7 | done |
 
 ## §4 Lanes
@@ -56,7 +56,7 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 | REQ-4.2-6 | 4.2 | Re-sort is not a release | M14 | as REQ-4.2-5; no immediate stop | #10 | todo |
 | REQ-4.2-7 | 4.2 | Source completely empty → immediate stop | M14 | chord {60}, idx 0 sounding; NOff 60 mid-step → Note-Off at that sample | #10 | todo |
 | REQ-4.2-8 | 4.2 | Idx drops out of chord by release → immediate stop | M14 | chord {60,64}, idx 1 sounding; NOff 64 → immediate Note-Off | #10 | todo |
-| REQ-4.2-9 | 4.2 | Follow idx range 0–15; out-of-range clamped | M12,M20 | 16 → 15; −1 → 0 | #10,#13 | todo |
+| REQ-4.2-9 | 4.2 | Follow idx range 0–15; out-of-range clamped | M12,M20 | 16 → 15; −1 → 0 | #10,#13 | done |
 | REQ-4.3-1 | 4.3 | Channel mode follows most recent note on channel | M08 | NOn 60 ch3, NOn 64 ch3 → plays 64 | #7 | done |
 | REQ-4.3-2 | 4.3 | No note stack: release of followed note stops lane even if older held | M08,M14 | NOn 60, NOn 64; NOff 64 → lane stops immediately, 60 not resumed | #7,#10 | todo |
 | REQ-4.3-3 | 4.3 | Silent before first note on channel | M08 | no notes → no output | #7 | done |
@@ -74,7 +74,7 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 | REQ-4.6-5 | 4.6 | Latch param stays after mute/stop | M14 | mute → config.latch still on | #10 | todo |
 | REQ-4.6-6 | 4.6 | After un-mute/restart: plays only if source has held note now; latch memory not restored | M14,M17 | latch; release; mute; unmute → silent; with key held → plays | #10,#11 | todo |
 | REQ-4.6-7 | 4.6 | Latch velocity: most recent followed note's velocity | M14,M09 | latch; NOn 60 vel 100; release; NOn 64 vel 40 → next step vel 40 | #10 | todo |
-| REQ-4.6-8 | 4.6 | Latch automatable | M20 | param exists | #13 | todo |
+| REQ-4.6-8 | 4.6 | Latch automatable | M20 | param exists | #13 | done |
 
 ## §5 Timing
 
@@ -120,7 +120,7 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 | REQ-6-3 | 6 | Gate range 1–200, clamped; default 100 | M12 | 0 → 1; 500 → 200 | #10 | todo |
 | REQ-6-4 | 6 | Gate > 100: overlap, polyphonic | M14,M11 | gate 200, chord idx 0: Note-On of step k+1 happens while k sounding (different pitch: both sound; same pitch: retrigger §9.1) | #10 | todo |
 | REQ-6-5 | 6 | Gate 1 %: minimal note length ≥ 1 sample, Note-Off after On | M04,M14 | 1/32 gate 1 at 48 kHz → On, Off ≥ 1 sample later | #5,#10 | todo |
-| REQ-6-6 | 6 | Gate automatable | M20 | param exists | #13 | todo |
+| REQ-6-6 | 6 | Gate automatable | M20 | param exists | #13 | done |
 
 ## §7 Velocity
 
@@ -140,7 +140,7 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 | REQ-7.3-1 | 7.3 | Input velocity sampled at step trigger | M14 | NOn vel 100; step starts; NOn same pitch vel 50 mid-step → sounding note keeps 100; next step uses 50 | #10 | todo |
 | REQ-7.3-2 | 7.3 | Latch: last followed note's velocity | M14 | see REQ-4.6-7 | #10 | todo |
 | REQ-7.3-3 | 7.3 | Mode change affects only newly triggered | M14 | change mode mid-note → running note keeps vel | #10 | todo |
-| REQ-7.3-4 | 7.3 | Velocity mode automatable | M20 | param exists | #13 | todo |
+| REQ-7.3-4 | 7.3 | Velocity mode automatable | M20 | param exists | #13 | done |
 
 ## §8 Output routing
 
@@ -216,12 +216,12 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 
 | ID | § | Rule | Module | Scenario | Issue | Status |
 |---|---|---|---|---|---|---|
-| REQ-12-1 | 12 | Exact global param set: Thru, Consume, Chord Input Channel | M20 | layout IDs | #13 | todo |
-| REQ-12-2 | 12 | Exact lane param set ×8 (14 params) | M20 | layout IDs per lane | #13 | todo |
-| REQ-12-3 | 12 | Ranges and defaults match §20/§4–§8 | M20 | each param min/max/default | #13 | todo |
-| REQ-12-4 | 12 | Text grid, step data, colors not host parameters | M20 | absent from layout | #13 | todo |
-| REQ-12-5 | 12 | Parameter → config mapping | M20 | snapshot → `SequencerConfiguration` | #13 | todo |
-| REQ-12-6 | 12 | Param IDs stable (automation compat) | M20 | golden list of IDs | #13 | todo |
+| REQ-12-1 | 12 | Exact global param set: Thru, Consume, Chord Input Channel | M20 | layout IDs | #13 | done |
+| REQ-12-2 | 12 | Exact lane param set ×8 (14 params) | M20 | layout IDs per lane | #13 | done |
+| REQ-12-3 | 12 | Ranges and defaults match §20/§4–§8 | M20 | each param min/max/default | #13 | done |
+| REQ-12-4 | 12 | Text grid, step data, colors not host parameters | M20 | absent from layout | #13 | done |
+| REQ-12-5 | 12 | Parameter → config mapping | M20 | snapshot → `SequencerConfiguration` | #13 | done |
+| REQ-12-6 | 12 | Param IDs stable (automation compat) | M20 | golden list of IDs | #13 | done |
 
 ## §13 State and presets
 
@@ -308,7 +308,7 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 |---|---|---|---|---|---|---|
 | REQ-20-1 | 20 | Lane defaults: Base Timing, 1/16, straight, swing 0, 16 steps all on | M12,M21 | default config/doc | #10,#14 | todo |
 | REQ-20-2 | 20 | Vel mode incoming; chord-follow idx 0; out ch 1; transpose 0; gate 100; latch/mute off | M12 | default config | #10 | todo |
-| REQ-20-3 | 20 | Globals: chord ch 1, Thru off, Consume on | M20 | default params | #13 | todo |
+| REQ-20-3 | 20 | Globals: chord ch 1, Thru off, Consume on | M20 | default params | #13 | done |
 | REQ-20-4 | 20 | Default lane colors = fixed palette in lane order | M01,M21 | see REQ-4-5 | #5,#14 | todo |
 | REQ-20-5 | 20 | Fresh plugin, chord 60 held, T+ → 16th notes on 60, vel = input, ch 1 | M17 | end-to-end: NOn(1,60,100) @0 held, T+ @beat 0 → NOn @0, @6000, @12000 …; each NOff at the next step start (@6000, …), Off before On at equal sample | #11 | todo |
 

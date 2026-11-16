@@ -1,7 +1,7 @@
 #pragma once
 
 #include "BlockEngine.h"
-#include "arpeggiator/SequencerConfiguration.h"
+#include "ParameterReader.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
@@ -37,13 +37,16 @@ public:
     const juce::String getProgramName(int index) override;
     void changeProgramName(int index, const juce::String& newName) override;
 
+    juce::AudioProcessorParameter* getBypassParameter() const override;
+    juce::AudioProcessorValueTreeState& parameters() noexcept { return parameters_; }
+
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
 
 private:
+    juce::AudioProcessorValueTreeState parameters_;
+    phu::plugin::ParameterReader parameterReader_;
     phu::plugin::BlockEngine engine_;
-    phu::arpeggiator::SequencerConfiguration config_ =
-        phu::arpeggiator::clampConfiguration(phu::arpeggiator::defaultSequencerConfiguration());
     double sampleRate_ = 44100.0;
 
     void processInternal(juce::AudioBuffer<float>&, juce::MidiBuffer&, bool bypassed);
