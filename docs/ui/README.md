@@ -11,3 +11,11 @@ SVG sketches for the editor described in `spec/arp-spec.md` §14. They are layou
 | `lane-muted-relative-invalid-grid.svg` | Pink lane: muted, relative velocity (0–200 %), invalid text-grid entry marked red |
 
 Common elements per lane: mute (M), latch (L), input mode with follow index or channel, output channel, transpose, gate, color picker (lane color of step pads and velocity bars), Timing Source switch (Base Timing / Grid), base timing, subdivision, swing, step count, velocity mode, text-grid field, step pads (click = on/off), velocity drag bars, playback position indicator (amber frame). Lane colors follow the default palette in lane order (blue, green, purple, pink, teal, indigo, lime, brown).
+
+## Implementation screenshots (#15)
+
+Rendered from the JUCE editor (offscreen, Linux) for comparison with the sketches above.
+
+![editor default size](editor-screenshot-default.png)
+
+![editor minimum size](editor-screenshot-min-size.png)
