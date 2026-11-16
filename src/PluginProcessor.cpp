@@ -10,8 +10,12 @@ PluginProcessor::PluginProcessor() : juce::AudioProcessor(
         .withInput("Input", juce::AudioChannelSet::stereo(), true)
         .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       parameters_(*this, nullptr, "Parameters", phu::plugin::createParameterLayout()),
-      parameterReader_(parameters_)
+      parameterReader_(parameters_),
+      presetManager_(parameters_, patternStore_)
 {
+    for (auto& step : currentStepIndex_) {
+        step.store(-1, std::memory_order_relaxed);
+    }
 }
 
 PluginProcessor::~PluginProcessor()
@@ -81,6 +85,21 @@ void PluginProcessor::processInternal(juce::AudioBuffer<float>& buffer, juce::Mi
     const auto transport = phu::plugin::readHostTransport(getPlayHead());
     const auto config = phu::arpeggiator::buildConfiguration(parameterReader_.read());
     engine_.process(midi, buffer.getNumSamples(), transport, sampleRate_, bypassed, config);
+
+    const auto status = engine_.core().playbackStatus();
+    for (std::size_t lane = 0; lane < currentStepIndex_.size(); ++lane) {
+        const auto& laneStatus = status.lanes[lane];
+        currentStepIndex_[lane].store(laneStatus.isRunning ? laneStatus.currentStepIndex : -1,
+                                      std::memory_order_relaxed);
+    }
+}
+
+int PluginProcessor::currentStepIndex(int laneIndex) const noexcept
+{
+    if (laneIndex < 0 || laneIndex >= static_cast<int>(currentStepIndex_.size())) {
+        return -1;
+    }
+    return currentStepIndex_[static_cast<std::size_t>(laneIndex)].load(std::memory_order_relaxed);
 }
 
 void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)

@@ -13,6 +13,8 @@ struct LaneDisplayGeometry {
     double loopWidthPixels = 0;                                         // loopLengthBeats * pixelsPerBeat
     std::array<double, sequencing::constants::lanes::maximumStepCount + 1> stepStartPixels{}; // [stepCount] = loop end
     int stepCount = 0;                                                  // 0: empty grid -> "no grid" placeholder
+
+    friend bool operator==(const LaneDisplayGeometry&, const LaneDisplayGeometry&) noexcept = default;
 };
 
 struct DisplayScale {

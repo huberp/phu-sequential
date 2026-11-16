@@ -37,12 +37,28 @@ target_sources(phu-sequential PRIVATE
     StateSerializer.cpp
     PresetManager.h
     PresetManager.cpp
+    editor/EditorControls.h
+    editor/EditorLayout.h
+    editor/EditorLookAndFeel.h
+    editor/GlobalBar.h
+    editor/GlobalBar.cpp
+    editor/LaneControlStrip.h
+    editor/LaneControlStrip.cpp
+    editor/LaneRow.h
+    editor/LaneRow.cpp
+    editor/StepDisplay.h
+    editor/StepDisplay.cpp
+    editor/TextGridField.h
+    editor/TextGridField.cpp
 )
+
+target_include_directories(phu-sequential PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(phu-sequential
     PRIVATE
         SequentialCoreLib
         juce::juce_audio_processors
+        juce::juce_gui_basics
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags

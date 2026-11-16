@@ -398,6 +398,12 @@ Editor rules:
 - **Size** (D-36): default 1280×820, min 1000×420, max 3840×2400, `setResizable(true, true)` + `setResizeLimits`. Rows are fixed height (`laneRowHeight` 140 px), so 8 rows = 1120 px and the viewport scrolls vertically below that. Step-area width = editor width − `controlStripWidth` (148 px, from the sketch) − margins; minimum step width 16 px (D-37).
 - Colors: lane palette from `constants::colors::defaultLanePalette` (§20); neutral off-step color and amber indicator are `EditorLookAndFeel` colours (UI only, not spec constants).
 
+Implementation notes (#15), deviations from the sketch above:
+- `PluginEditor` stays a global-namespace class in `src/` (as `PluginProcessor`); the other classes live in `phu::plugin::editor`, files in `src/editor/`. `LaneControlStrip` is a helper (not a `Component`) that owns the controls and adds them to its `LaneRow`; `LaneColorPicker` shares its file; `EditorLookAndFeel` is header-only. Chord Input Channel is a bar slider (`ComboBoxParameterAttachment` maps indices, which is wrong for int parameters).
+- All geometry (margins, control heights, row regions, step-area width) is computed in `editor/EditorLayout.h` from `constants::editor`; no pixel values elsewhere.
+- Position indicator: `PluginProcessor::currentStepIndex(lane)` (relaxed atomics written after each block from `SequencerCore::playbackStatus()`), polled by the editor timer; the TripleBuffer-based `pollPlaybackStatus` is still planned.
+- `PresetManager` is owned by `PluginProcessor` (preset name survives editor close).
+
 ### 6.6 M24 Factory presets — `presets/factory/*.phuseq` (#16)
 
 Embedded via the conditional `SequentialFactoryPresets` binary-data target of §8.2 (globbed `presets/factory/*.phuseq`; file order = list order, sorted by a numeric file-name prefix `NN-Name.phuseq`). `juce_add_binary_data` fails with an empty source list, so the target is only created when at least one preset exists; otherwise `PHU_HAS_FACTORY_PRESETS=0` and `PresetManager` exposes an empty factory list (`#if PHU_HAS_FACTORY_PRESETS`). Hence #4 and every issue before #16 build without preset files. Each file is `kind="preset"`, `formatVersion` = current, contains every field (no clamping/migration on load — tested). Planned set (§13 "useful built-in presets"; content authored in #16 with a one-line description in `presets/factory/README.md`):
