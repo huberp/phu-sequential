@@ -7,13 +7,12 @@
 | File | Purpose | Status |
 |------|---------|--------|
 | `PluginProcessor.h/.cpp` | JUCE `AudioProcessor` subclass: host transport, MIDI I/O, state serialization, editor creation. | **Core only** (#12 stub) |
-| `PluginEditor.h/.cpp` | JUCE `AudioProcessorEditor` subclass: placeholder UI. | **Stub** (minimal) |
+| `PluginEditor.h/.cpp`, `editor/*` | M23 editor (#15): global bar, 8 lane rows, control strips, step display, text grid, color picker; all geometry in `editor/EditorLayout.h`. | Implemented |
 
 ## What is planned
 
 - **#13**: Parameter system (IDs, layout, readers), configuration builder
 - **#14**: Pattern store (document, TripleBuffer<PatternSnapshot>, preset/state serialization)
-- **#15**: Editor UI (display scale, step grid, lane panes)
 - **#16**: Factory presets
 
 ## Rules

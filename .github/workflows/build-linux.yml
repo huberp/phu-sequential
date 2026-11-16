@@ -11,6 +11,10 @@ on:
         description: 'Run pluginval validation after build (VST3 only)'
         type: boolean
         default: false
+      take-screenshot:
+        description: 'Render the editor offscreen and attach the screenshots to the build as an artifact'
+        type: boolean
+        default: false
       upload-artifact:
         description: 'Upload the packaged plugin as a workflow artifact'
         type: boolean
@@ -52,13 +56,30 @@ jobs:
         run: cmake -P scripts/check_catch2_string_view.cmake
 
       - name: Configure CMake
-        run: cmake --preset linux-${{ inputs.arch }}-vst3-release
+        run: cmake --preset linux-${{ inputs.arch }}-vst3-release -DPHU_BUILD_SCREENSHOT_TOOL=${{ inputs.take-screenshot && 'ON' || 'OFF' }}
 
       - name: Build
         run: cmake --build --preset linux-${{ inputs.arch }}-vst3-release-build
 
       - name: Run Tests
         run: cmake --build --preset linux-${{ inputs.arch }}-vst3-release-build --target test
+
+      - name: Take editor screenshots
+        if: ${{ inputs.take-screenshot }}
+        run: |
+          sudo apt-get install -y xvfb
+          BUILD_PRESET_DIR="build/linux-${{ inputs.arch }}-vst3-release"
+          cmake --build "$BUILD_PRESET_DIR" --target phu-screenshot
+          SHOT_BIN=$(find "$BUILD_PRESET_DIR" -name phu-screenshot -type f | head -n 1)
+          xvfb-run -a "$SHOT_BIN" ./screenshots
+
+      - name: Upload editor screenshots
+        if: ${{ inputs.take-screenshot }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: editor-screenshots-linux-${{ inputs.arch }}
+          path: ./screenshots/*.png
+          if-no-files-found: error
 
       - name: Install pluginval runtime dependencies
         if: ${{ inputs.run-pluginval }}

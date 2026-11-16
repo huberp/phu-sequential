@@ -12,7 +12,7 @@ juce_add_plugin(phu-sequential
     IS_MIDI_EFFECT TRUE
 )
 
-target_sources(phu-sequential PRIVATE
+set(PHU_PLUGIN_SOURCES
     PluginProcessor.cpp
     PluginProcessor.h
     PluginEditor.cpp
@@ -37,14 +37,53 @@ target_sources(phu-sequential PRIVATE
     StateSerializer.cpp
     PresetManager.h
     PresetManager.cpp
+    editor/EditorControls.h
+    editor/EditorLayout.h
+    editor/EditorLookAndFeel.h
+    editor/GlobalBar.h
+    editor/GlobalBar.cpp
+    editor/LaneControlStrip.h
+    editor/LaneControlStrip.cpp
+    editor/LaneRow.h
+    editor/LaneRow.cpp
+    editor/StepDisplay.h
+    editor/StepDisplay.cpp
+    editor/TextGridField.h
+    editor/TextGridField.cpp
 )
+target_sources(phu-sequential PRIVATE ${PHU_PLUGIN_SOURCES})
+
+target_include_directories(phu-sequential PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(phu-sequential
     PRIVATE
         SequentialCoreLib
         juce::juce_audio_processors
+        juce::juce_gui_basics
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags
 )
+
+# Offscreen editor renderer used by CI ("take-screenshot"); not part of the plugin.
+option(PHU_BUILD_SCREENSHOT_TOOL "Build the editor screenshot tool (phu-screenshot)" OFF)
+if(PHU_BUILD_SCREENSHOT_TOOL)
+    juce_add_console_app(phu-screenshot PRODUCT_NAME "phu-screenshot")
+    target_sources(phu-screenshot PRIVATE
+        ${CMAKE_SOURCE_DIR}/tools/screenshot/ScreenshotMain.cpp
+        ${PHU_PLUGIN_SOURCES})
+    target_include_directories(phu-screenshot PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_compile_definitions(phu-screenshot PRIVATE
+        JucePlugin_Name="phu-sequential"
+        JUCE_WEB_BROWSER=0
+        JUCE_USE_CURL=0
+        JUCE_MODAL_LOOPS_PERMITTED=1)
+    target_link_libraries(phu-screenshot
+        PRIVATE
+            SequentialCoreLib
+            juce::juce_audio_processors
+            juce::juce_gui_basics
+        PUBLIC
+            juce::juce_recommended_config_flags)
+endif()
