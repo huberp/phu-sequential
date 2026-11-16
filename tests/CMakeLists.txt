@@ -22,6 +22,7 @@ add_executable(SequentialCoreTests
     core/TransportTrackerTests.cpp
     core/PassThroughFilterTests.cpp
     core/SequencerCoreTests.cpp
+    core/ConfigurationBuilderTests.cpp
 )
 
 target_include_directories(SequentialCoreTests PRIVATE
@@ -59,9 +60,13 @@ add_executable(SequentialAdapterTests
     adapter/HostTransportTests.cpp
     adapter/MidiConversionTests.cpp
     adapter/BlockEngineTests.cpp
+    adapter/ParameterTests.cpp
     ../src/HostTransport.cpp
     ../src/MidiConversion.cpp
     ../src/BlockEngine.cpp
+    ../src/ParameterIds.cpp
+    ../src/ParameterLayout.cpp
+    ../src/ParameterReader.cpp
 )
 
 target_include_directories(SequentialAdapterTests PRIVATE
@@ -73,6 +78,7 @@ target_link_libraries(SequentialAdapterTests PRIVATE
     SequentialCoreLib
     Catch2::Catch2WithMain
     juce::juce_audio_basics
+    juce::juce_audio_processors
 )
 
 set_target_properties(SequentialAdapterTests PROPERTIES

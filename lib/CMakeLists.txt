@@ -55,6 +55,9 @@ target_sources(SequentialCoreLib PRIVATE
     arpeggiator/SequencerCore.cpp
     arpeggiator/DisplayScale.h
     arpeggiator/DisplayScale.cpp
+    arpeggiator/ParameterSnapshot.h
+    arpeggiator/ConfigurationBuilder.h
+    arpeggiator/ConfigurationBuilder.cpp
 )
 
 set_target_properties(SequentialCoreLib PROPERTIES

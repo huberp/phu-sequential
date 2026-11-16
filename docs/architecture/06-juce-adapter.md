@@ -4,7 +4,7 @@
 
 ### 6.1 M19 Processor, MIDI conversion, host transport — (#12)
 
-> **Implementation note (#12):** the audio-thread block logic (steps 0, 2-5) lives in `BlockEngine` (`src/BlockEngine.h/.cpp`, owns `core_`, `coreOutput_`, `inputChunk_`, `outputScratch_`, `outputOpen_`, `deferredInput_`) and `PluginProcessor` delegates to it with a temporary default configuration (§20) until M20/M21 exist. Step 1 (state/params), TripleBuffers and playback status are not yet implemented. JUCE exposes no public `MidiBuffer::data.getNumAllocated()`, so `OutputMidiWriter` tracks the byte budget logically against `outputMidiReserveBytes`.
+> **Implementation note (#12):** the audio-thread block logic (steps 0, 2-5) lives in `BlockEngine` (`src/BlockEngine.h/.cpp`, owns `core_`, `coreOutput_`, `inputChunk_`, `outputScratch_`, `outputOpen_`, `deferredInput_`) and `PluginProcessor` delegates to it with a temporary default configuration (§20) until M21 exists (M20 is implemented: `PluginProcessor` builds the configuration per block from `ParameterReader` via `buildConfiguration`, and `getBypassParameter()` returns the `bypass` parameter). Step 1 (state/params), TripleBuffers and playback status are not yet implemented. JUCE exposes no public `MidiBuffer::data.getNumAllocated()`, so `OutputMidiWriter` tracks the byte budget logically against `outputMidiReserveBytes`.
 
 ```cpp
 // HostTransport.h
@@ -204,6 +204,7 @@ inline constexpr std::string_view thru = "thru", consume = "consume", chordInput
 enum class LaneParameter : std::uint8_t { mute, latch, inputMode, followIndex, followChannel, outputChannel,
     transpose, gate, timingSource, baseTiming, subdivision, swing, stepCount, velocityMode };
 inline constexpr int laneParameterCount = 14;
+inline constexpr std::array<std::string_view, laneParameterCount> laneParameterDisplayNames{ /* "Mute", ..., "Velocity Mode" */ };
 inline constexpr std::array<std::string_view, laneParameterCount> laneParameterSuffixes{
     "mute", "latch", "inputMode", "followIndex", "followChannel", "outputChannel", "transpose", "gate",
     "timingSource", "baseTiming", "subdivision", "swing", "stepCount", "velocityMode"};
