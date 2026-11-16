@@ -29,6 +29,14 @@ target_sources(phu-sequential PRIVATE
     ParameterLayout.cpp
     ParameterReader.h
     ParameterReader.cpp
+    PatternStore.h
+    PatternStore.cpp
+    StateMigration.h
+    StateMigration.cpp
+    StateSerializer.h
+    StateSerializer.cpp
+    PresetManager.h
+    PresetManager.cpp
 )
 
 target_link_libraries(phu-sequential

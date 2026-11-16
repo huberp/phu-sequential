@@ -23,6 +23,7 @@ add_executable(SequentialCoreTests
     core/PassThroughFilterTests.cpp
     core/SequencerCoreTests.cpp
     core/ConfigurationBuilderTests.cpp
+    core/PatternDocumentTests.cpp
 )
 
 target_include_directories(SequentialCoreTests PRIVATE
@@ -61,12 +62,17 @@ add_executable(SequentialAdapterTests
     adapter/MidiConversionTests.cpp
     adapter/BlockEngineTests.cpp
     adapter/ParameterTests.cpp
+    adapter/StateTests.cpp
     ../src/HostTransport.cpp
     ../src/MidiConversion.cpp
     ../src/BlockEngine.cpp
     ../src/ParameterIds.cpp
     ../src/ParameterLayout.cpp
     ../src/ParameterReader.cpp
+    ../src/PatternStore.cpp
+    ../src/StateMigration.cpp
+    ../src/StateSerializer.cpp
+    ../src/PresetManager.cpp
 )
 
 target_include_directories(SequentialAdapterTests PRIVATE

@@ -265,6 +265,8 @@ Step-data edit latency: an edit is visible to the audio thread at the next block
 
 **#12 stub vs #14** (§9): #12 ships `src/PatternStore.h/.cpp` with exactly this minimal API — `PatternStore()` (default `PatternDocument`, revision 1, snapshot published), `TripleBuffer<PatternSnapshot>& audioSide() noexcept`, `void applyDiscardState(const StepDiscardState&)` (stub: no-op; the core keeps masking until acknowledged, D-32) — and no `ChangeBroadcaster` base. #14 keeps these three signatures unchanged, replaces `PatternStore.cpp`, adds the `juce::ChangeBroadcaster` base, the mutex, all mutators, `replaceDocument`, `copyDocument`, and the real `applyDiscardState`.
 
+**#14 implementation status (deviations)**: `PatternStore` currently has the mutex-protected mutators, `replaceDocument` (returns void) and `copyDocument`, but no `TripleBuffer` publish, `audioSide()` or `applyDiscardState`; `PatternDocument` has no `applyDiscardState` and offers `enforceStepCountInvariant` (I-1 on load). State apply writes APVTS directly on the calling thread; the generation-guarded atomic hand-off of D-52 (`PendingState`) lands together with the audio-side pattern consumer. `PresetManager` lists user presets only (no factory presets before #16) and takes an optional folder for tests. `fromValueTree` reports `loadedWithClamping` over `migrated` when both apply.
+
 ### 6.4 M22 State, presets, versioning — `StateSerializer`, `StateMigration`, `PresetManager` (#14)
 
 **Format (D-34)** — JUCE `ValueTree` serialized as XML (§13). Same schema for host state and preset files; `kind` distinguishes them. Host state is stored with `AudioProcessor::copyXmlToBinary` (VST3 state); preset files are UTF-8 XML text.

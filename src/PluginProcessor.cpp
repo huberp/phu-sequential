@@ -2,6 +2,7 @@
 #include "HostTransport.h"
 #include "ParameterLayout.h"
 #include "PluginEditor.h"
+#include "StateSerializer.h"
 #include "arpeggiator/ConfigurationBuilder.h"
 
 PluginProcessor::PluginProcessor() : juce::AudioProcessor(
@@ -109,12 +110,15 @@ juce::AudioProcessorParameter* PluginProcessor::getBypassParameter() const
     return parameters_.getParameter(juce::String(phu::plugin::parameter_ids::bypass.data()));
 }
 
-void PluginProcessor::getStateInformation(juce::MemoryBlock&)
+void PluginProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
+    phu::plugin::writeStateBlock(phu::plugin::captureState(parameters_, patternStore_), destData);
 }
 
-void PluginProcessor::setStateInformation(const void*, int)
+void PluginProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
+    const auto result = phu::plugin::readStateBlock(data, sizeInBytes);
+    phu::plugin::applyState(result.data, parameters_, patternStore_);
 }
 
 // JUCE plugin wrapper macro

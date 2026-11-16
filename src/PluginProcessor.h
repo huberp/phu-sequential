@@ -2,6 +2,7 @@
 
 #include "BlockEngine.h"
 #include "ParameterReader.h"
+#include "PatternStore.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
@@ -39,6 +40,7 @@ public:
 
     juce::AudioProcessorParameter* getBypassParameter() const override;
     juce::AudioProcessorValueTreeState& parameters() noexcept { return parameters_; }
+    phu::plugin::PatternStore& patternStore() noexcept { return patternStore_; }
 
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
@@ -46,6 +48,7 @@ public:
 private:
     juce::AudioProcessorValueTreeState parameters_;
     phu::plugin::ParameterReader parameterReader_;
+    phu::plugin::PatternStore patternStore_;
     phu::plugin::BlockEngine engine_;
     double sampleRate_ = 44100.0;
 

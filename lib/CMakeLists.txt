@@ -58,6 +58,8 @@ target_sources(SequentialCoreLib PRIVATE
     arpeggiator/ParameterSnapshot.h
     arpeggiator/ConfigurationBuilder.h
     arpeggiator/ConfigurationBuilder.cpp
+    arpeggiator/PatternDocument.h
+    arpeggiator/PatternDocument.cpp
 )
 
 set_target_properties(SequentialCoreLib PROPERTIES
