@@ -27,6 +27,9 @@ This document has been split into focused sub-documents for better token efficie
 | §19 | [Code Style](17-code-style.md) | Coding conventions |
 | §20 | [Initial State](18-initial-state.md) | Default values for all parameters |
 | §21 | [Bypass](19-bypass.md) | Host bypass behavior |
+| §22 | [Lane State Management](20-lane-state-management.md) | LaneState as canonical representation, serialization, copy semantics |
+| §23 | [Command and Undo Infrastructure](21-command-undo-infrastructure.md) | Command pattern, undo manager, reusability |
+| §24 | [Lane Commands](22-lane-commands.md) | Step manipulation, pattern generation, configuration commands |
 
 ---
 
