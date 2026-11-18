@@ -67,6 +67,10 @@ target_sources(SequentialCoreLib PRIVATE
     arpeggiator/LaneState.cpp
     arpeggiator/LaneCommand.h
     arpeggiator/LaneCommand.cpp
+    arpeggiator/LaneCommands.h
+    arpeggiator/LaneCommands.cpp
+    arpeggiator/LaneCommandRegistry.h
+    arpeggiator/LaneCommandRegistry.cpp
 )
 
 set_target_properties(SequentialCoreLib PROPERTIES

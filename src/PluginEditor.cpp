@@ -17,10 +17,11 @@ PluginEditor::PluginEditor(PluginProcessor& processor)
       globalBar_(processor.parameters(), processor.presetManager())
 {
     setLookAndFeel(&lookAndFeel_);
+    setWantsKeyboardFocus(true);
     addAndMakeVisible(globalBar_);
 
     for (int lane = 0; lane < laneCount; ++lane) {
-        auto row = std::make_unique<phu::plugin::editor::LaneRow>(processor.parameters(), processor.patternStore(), lane);
+        auto row = std::make_unique<phu::plugin::editor::LaneRow>(processor.parameters(), processor.laneEditHistory(), lane);
         laneContainer_.addAndMakeVisible(*row);
         laneRows_[static_cast<std::size_t>(lane)] = std::move(row);
     }
@@ -47,6 +48,22 @@ PluginEditor::~PluginEditor()
     processorRef.patternStore().removeChangeListener(this);
     stepAreaScrollBar_.removeListener(this);
     setLookAndFeel(nullptr);
+}
+
+bool PluginEditor::keyPressed(const juce::KeyPress& key)
+{
+    const auto cmd = juce::ModifierKeys::commandModifier;
+    const auto shift = juce::ModifierKeys::shiftModifier;
+    auto& history = processorRef.laneEditHistory();
+    if (key == juce::KeyPress('z', cmd, 0)) {
+        history.undo();
+        return true;
+    }
+    if (key == juce::KeyPress('z', cmd | shift, 0) || key == juce::KeyPress('y', cmd, 0)) {
+        history.redo();
+        return true;
+    }
+    return false;
 }
 
 void PluginEditor::paint(juce::Graphics& g)

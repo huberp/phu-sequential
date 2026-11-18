@@ -341,7 +341,7 @@ None blocking. REQ-21-5: spec silent whether a Note-Off for a note begun during 
 | REQ-23-2 | 23.4 | `canUndo/canRedo/getUndoName/getRedoName` | M25 | names follow stacks; empty when none | – | done |
 | REQ-23-3 | 23.7 | Undo depth bounded (default 100) | M25 | 101 commands → oldest dropped | – | done |
 | REQ-23-4 | 23.6 | Undo yields state equal to the saved `LaneState` | M27,M26 | any command, undo → `==` previous | – | done |
-| REQ-24-1 | 24.2 | Each command produces the specified lane change within ranges; out-of-range clamped | M27 | per command incl. gate 1–200, transpose ±24, step count 1–64 | – | todo |
-| REQ-24-2 | 24.5 | FillRandom deterministic for equal seed/probability; redo reproduces | M27 | execute, undo, redo → same pattern | – | todo |
-| REQ-24-3 | 24.6 | Macro = one undo step, reverse-order undo | M25,M27 | FillRandom + Rotate; one undo → original | – | todo |
-| REQ-24-4 | 24.8 | Registry creates commands by name; unknown name → null | M27 | register, create, list names | – | todo |
+| REQ-24-1 | 24.2 | Each command produces the specified lane change within ranges; out-of-range clamped | M27 | per command incl. gate 1–200, transpose ±24, step count 1–64 | – | done |
+| REQ-24-2 | 24.5 | FillRandom deterministic for equal seed/probability; redo reproduces | M27 | execute, undo, redo → same pattern | – | done |
+| REQ-24-3 | 24.6 | Macro = one undo step, reverse-order undo | M25,M27 | FillRandom + Rotate; one undo → original | – | done |
+| REQ-24-4 | 24.8 | Registry creates commands by name; unknown name → null | M27 | register, create, list names | – | done |

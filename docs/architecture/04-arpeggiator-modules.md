@@ -499,7 +499,7 @@ struct LaneState {                 // composes existing types; no new fields bey
 
 Relationship: `LaneState` is the snapshot of one lane across the host-parameter side (`ParameterSnapshot`, M20) and the pattern side (`PatternDocument`, M21). Applying a `LaneState` writes parameters through APVTS with host notification and the document via `PatternStore` (D-55); the audio thread keeps receiving data only via the existing paths (§7). Version/migration rules are those of M22 (§22.5 = §13).
 
-### 4.11 M27 Lane commands — `LaneCommand.h/.cpp`, `LaneCommands.h/.cpp`, `LaneCommandRegistry.h/.cpp` (base class `LaneCommand`/`LaneStateAccess` implemented, #42; concrete commands and registry planned)
+### 4.11 M27 Lane commands — `LaneCommand.h/.cpp`, `LaneCommands.h/.cpp`, `LaneCommandRegistry.h/.cpp` (implemented, #42/#43)
 
 ```cpp
 namespace phu::arpeggiator {
@@ -519,4 +519,4 @@ public: virtual ~LaneStateAccess() = default;
 }
 ```
 
-Concrete commands (§24.2): Reverse/Rotate/Invert steps; FillRandom (seed + probability, deterministic via a local PRNG, not `std::rand`), ArithmeticSequence, Euclidean; SetStepOn/SetStepVelocity/ClearLane/FillLane; Set{InputMode, FollowIndex, FollowChannel, OutputChannel, Transpose, Gate, VelocityMode, StepCount, TimingSource, BaseTiming, TextGrid, Mute, Latch, LaneColor}. Inputs are clamped/validated with the M01 limits; step operations act on the lane's active step count. `LaneCommandRegistry` (§24.8) maps name → factory; owned by the adapter and passed by reference (no global singleton, D-56). Depends on: M25, M26, M05 (text grid), M01.
+Concrete commands (§24.2): Reverse/Rotate/Invert steps; FillRandom (seed + probability, deterministic via a local PRNG, not `std::rand`), ArithmeticSequence, Euclidean; SetStepOn/SetStepVelocity/ClearLane/FillLane; Set{InputMode, FollowIndex, FollowChannel, OutputChannel, Transpose, Gate, VelocityMode, StepCount, TimingSource, BaseTiming, TextGrid, Mute, Latch, LaneColor}. Inputs are clamped/validated with the M01 limits; step operations act on the lane's active step count. Commands are constructed as `(LaneStateAccess&, int lane, args...)`; configuration commands clamp via `clampLaneParameters` and keep I-1 (`applyStepCountChange`); `SetBaseTiming(index, subdivision, swing)`; `FillRandom` seed is `uint32_t` (splitmix64). `LaneCommandRegistry` (§24.8) maps name (without the `Command` suffix) → `Factory(LaneStateAccess&, int lane, const CommandArguments{numbers, text}&)`; `createCommand(name, access, lane, args)` returns `nullptr` for unknown names; owned by the adapter and passed by reference (no global singleton, D-56). Depends on: M25, M26, M05 (text grid), M01.

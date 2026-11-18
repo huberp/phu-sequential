@@ -1,5 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include "LaneEditHistory.h"
 #include "ParameterLayout.h"
 #include "PatternStore.h"
 #include "PresetManager.h"
@@ -393,4 +394,46 @@ TEST_CASE("LaneState: apply writes parameters through the parameter tree and the
     applyLaneState(lane, 2, apvts, store);
     CHECK(captureLaneState(apvts, store, 2) == lane);
     CHECK(captureLaneState(apvts, store, 0) == defaultLaneState(0));
+}
+
+TEST_CASE("LaneEditHistory: commands run through APVTS and store, undo/redo and clear", "[M27][REQ-24-3][REQ-24-4]") {
+    DummyProcessor processor;
+    juce::AudioProcessorValueTreeState apvts(processor, nullptr, "Parameters", createParameterLayout());
+    PatternStore store;
+    LaneEditHistory history(apvts, store);
+    const auto before = captureLaneState(apvts, store, 1);
+
+    const phu::arpeggiator::CommandArguments args{{5}, {}};
+    CHECK(history.execute("SetTranspose", 1, args));
+    CHECK_FALSE(history.execute("NoSuchCommand", 1));
+    CHECK(captureLaneState(apvts, store, 1).configuration.transpose == 5);
+    CHECK(history.canUndo());
+
+    history.undo();
+    CHECK(captureLaneState(apvts, store, 1) == before);
+    history.redo();
+    CHECK(captureLaneState(apvts, store, 1).configuration.transpose == 5);
+
+    history.clear();
+    CHECK_FALSE(history.canUndo());
+    CHECK_FALSE(history.canRedo());
+}
+
+TEST_CASE("LaneEditHistory: coalesced edits collapse into one undo step", "[M27][REQ-24-3]") {
+    DummyProcessor processor;
+    juce::AudioProcessorValueTreeState apvts(processor, nullptr, "Parameters", createParameterLayout());
+    PatternStore store;
+    LaneEditHistory history(apvts, store);
+    const auto before = captureLaneState(apvts, store, 0);
+
+    for (int text = 0; text < 3; ++text) {
+        history.executeCoalesced("color", [text](phu::arpeggiator::LaneStateAccess& access) {
+            return std::make_unique<phu::arpeggiator::SetLaneColorCommand>(access, 0, phu::arpeggiator::LaneColor{text, 1, 2});
+        });
+    }
+    history.endGesture();
+    CHECK(captureLaneState(apvts, store, 0).document.color == phu::arpeggiator::LaneColor{2, 1, 2});
+    history.undo();
+    CHECK(captureLaneState(apvts, store, 0) == before);
+    CHECK_FALSE(history.canUndo());
 }

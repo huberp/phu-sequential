@@ -75,6 +75,7 @@ add_executable(SequentialAdapterTests
     ../src/PatternStore.cpp
     ../src/StateMigration.cpp
     ../src/StateSerializer.cpp
+    ../src/LaneEditHistory.cpp
     ../src/PresetManager.cpp
 )
 

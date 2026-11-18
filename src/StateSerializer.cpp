@@ -197,7 +197,10 @@ arpeggiator::ParameterSnapshot toParameterSnapshot(const arpeggiator::SequencerC
 
 void setParameter(juce::AudioProcessorValueTreeState& apvts, const juce::String& id, int value) {
     if (auto* parameter = apvts.getParameter(id)) {
-        parameter->setValueNotifyingHost(parameter->convertTo0to1(static_cast<float>(value)));
+        const auto normalised = parameter->convertTo0to1(static_cast<float>(value));
+        if (parameter->getValue() != normalised) {  // unchanged values must not notify the host
+            parameter->setValueNotifyingHost(normalised);
+        }
     }
 }
 

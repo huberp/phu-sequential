@@ -1,6 +1,6 @@
 #pragma once
 
-#include "PatternStore.h"
+#include "LaneEditHistory.h"
 #include "arpeggiator/DisplayScale.h"
 #include "sequencing/StepData.h"
 #include "sequencing/velocity/VelocityMode.h"
@@ -22,7 +22,7 @@ struct StepDisplayState {
 // Steps at DisplayScale geometry: pad (click = on/off) above a velocity drag bar per step (sec. 14). [MT]
 class StepDisplay final : public juce::Component {
 public:
-    StepDisplay(PatternStore&, int laneIndex);
+    StepDisplay(LaneEditHistory&, int laneIndex);
 
     void setState(const StepDisplayState&);
     void setScrollOffset(int pixels);
@@ -42,7 +42,7 @@ private:
     [[nodiscard]] int valueAt(int step, int y) const;
     void applyDrag(int y);
 
-    PatternStore& store_;
+    LaneEditHistory& edits_;
     int laneIndex_;
     StepDisplayState state_;
     int scrollOffset_ = 0;

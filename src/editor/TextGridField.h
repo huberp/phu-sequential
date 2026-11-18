@@ -1,6 +1,6 @@
 #pragma once
 
-#include "PatternStore.h"
+#include "LaneEditHistory.h"
 #include "sequencing/TextGridParser.h"
 
 #include <juce_gui_basics/juce_gui_basics.h>
@@ -14,7 +14,7 @@ namespace phu::plugin::editor {
 // Timing Source (sec. 14). [MT]
 class TextGridField final : public juce::Component {
 public:
-    TextGridField(PatternStore&, int laneIndex);
+    TextGridField(LaneEditHistory&, int laneIndex);
 
     void setText(const std::string& text);  // no-op if identical, keeps the caret while typing
 
@@ -25,7 +25,7 @@ private:
     void textChanged();
     void refreshErrors();
 
-    PatternStore& store_;
+    LaneEditHistory& edits_;
     int laneIndex_;
     juce::TextEditor editor_;
     std::vector<sequencing::TextGridError> errors_;

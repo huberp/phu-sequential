@@ -1,6 +1,6 @@
 #pragma once
 
-#include "PatternStore.h"
+#include "LaneEditHistory.h"
 #include "arpeggiator/DisplayScale.h"
 #include "arpeggiator/LaneConfiguration.h"
 #include "arpeggiator/PatternDocument.h"
@@ -15,7 +15,7 @@ namespace phu::plugin::editor {
 // One lane: sidebar + control strip | text grid field above the step display; lane number badge in lane color. [MT]
 class LaneRow final : public juce::Component {
 public:
-    LaneRow(juce::AudioProcessorValueTreeState&, PatternStore&, int laneIndex);
+    LaneRow(juce::AudioProcessorValueTreeState&, LaneEditHistory&, int laneIndex);
 
     void update(const arpeggiator::LaneParameters&, const arpeggiator::LaneDocument&,
                 const arpeggiator::LaneDisplayGeometry&);

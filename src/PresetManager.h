@@ -4,6 +4,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
+#include <functional>
 #include <vector>
 
 namespace phu::plugin {
@@ -34,6 +35,9 @@ public:
     bool saveUserPreset(const juce::String& name);  // overwrites a preset of the same name
     LoadOutcome loadNext();                          // wraps around
     LoadOutcome loadPrevious();
+
+    // Invoked after a preset replaced the state (A-47: the undo history is cleared).
+    std::function<void()> onStateLoaded;
 
     [[nodiscard]] juce::String currentPresetName() const { return currentName_; }
 

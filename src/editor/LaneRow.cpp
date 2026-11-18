@@ -5,9 +5,9 @@
 
 namespace phu::plugin::editor {
 
-LaneRow::LaneRow(juce::AudioProcessorValueTreeState& apvts, PatternStore& store, int laneIndex)
-    : laneIndex_(laneIndex), strip_(apvts, store, laneIndex, *this), textGrid_(store, laneIndex),
-      stepDisplay_(store, laneIndex)
+LaneRow::LaneRow(juce::AudioProcessorValueTreeState& apvts, LaneEditHistory& edits, int laneIndex)
+    : laneIndex_(laneIndex), strip_(apvts, edits, laneIndex, *this), textGrid_(edits, laneIndex),
+      stepDisplay_(edits, laneIndex)
 {
     addAndMakeVisible(textGrid_);
     addAndMakeVisible(stepDisplay_);

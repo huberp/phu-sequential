@@ -11,11 +11,13 @@ PluginProcessor::PluginProcessor() : juce::AudioProcessor(
         .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       parameters_(*this, nullptr, "Parameters", phu::plugin::createParameterLayout()),
       parameterReader_(parameters_),
+      laneEditHistory_(parameters_, patternStore_),
       presetManager_(parameters_, patternStore_)
 {
     for (auto& step : currentStepIndex_) {
         step.store(-1, std::memory_order_relaxed);
     }
+    presetManager_.onStateLoaded = [this] { laneEditHistory_.clear(); };
 }
 
 PluginProcessor::~PluginProcessor()
@@ -138,6 +140,7 @@ void PluginProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     const auto result = phu::plugin::readStateBlock(data, sizeInBytes);
     phu::plugin::applyState(result.data, parameters_, patternStore_);
+    laneEditHistory_.clear();
 }
 
 // JUCE plugin wrapper macro

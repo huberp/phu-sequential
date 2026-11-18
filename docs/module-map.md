@@ -34,7 +34,7 @@ This is a compact token-efficient lookup table for agents working on specific mo
 | M24 Factory presets | [06-juce-adapter.md §6.6](architecture/06-juce-adapter.md) | `presets/factory/*.phuseq` (planned; conditional build) | (embedded via binary data; loaded via M22) | §13, §20 | D-35 | M22 |
 | M25 Command / UndoManager | [03-sequencing-modules.md §3.13](architecture/03-sequencing-modules.md) | `lib/sequencing/Command.h`, `UndoManager.h`, `.cpp` (implemented, #42) | UndoManagerTests | §23 | D-56 | M01 |
 | M26 LaneState | [04-arpeggiator-modules.md §4.10](architecture/04-arpeggiator-modules.md) (+ [06 §6.7](architecture/06-juce-adapter.md)) | `lib/arpeggiator/LaneState.h`, `.cpp`; adapter `src/LaneStateSerializer.h` (impl. in `StateSerializer.cpp`) (implemented, #41) | LaneStateTests; `tests/adapter/StateTests.cpp` | §22 | D-55 | M12, M21, M22 |
-| M27 Lane commands | [04-arpeggiator-modules.md §4.11](architecture/04-arpeggiator-modules.md) (+ [06 §6.7](architecture/06-juce-adapter.md)) | `lib/arpeggiator/LaneCommand.h`, `.cpp` (implemented, #42; incl. `LaneStateAccess`), `LaneCommands.h`, `.cpp`, `LaneCommandRegistry.h`, `.cpp` (planned) | LaneCommandTests | §24 | D-55, D-56, D-57 | M25, M26, M05 |
+| M27 Lane commands | [04-arpeggiator-modules.md §4.11](architecture/04-arpeggiator-modules.md) (+ [06 §6.7](architecture/06-juce-adapter.md)) | `lib/arpeggiator/LaneCommand.h`, `.cpp` (implemented, #42; incl. `LaneStateAccess`), `LaneCommands.h`, `.cpp`, `LaneCommandRegistry.h`, `.cpp` (implemented, #43); adapter: `src/LaneEditHistory.h`, `.cpp` | LaneCommandTests | §24 | D-55, D-56, D-57 | M25, M26, M05 |
 
 ## Reading Recipe
 
