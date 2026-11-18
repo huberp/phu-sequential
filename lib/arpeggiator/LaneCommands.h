@@ -29,44 +29,108 @@ private:
     std::function<void(LaneState&)> change_;
 };
 
-#define PHU_LANE_COMMAND(Name, ...)                                                    \
-    class Name final : public FunctionLaneCommand {                                    \
-    public:                                                                            \
-        Name(LaneStateAccess& access, int laneIndex __VA_OPT__(, ) __VA_ARGS__);       \
-    }
-
 // Step manipulation (sec. 24.2.1); all act on the lane's active step count.
-PHU_LANE_COMMAND(ReverseStepsCommand);
-PHU_LANE_COMMAND(RotateStepsCommand, int amount);  // positive = towards higher steps
-PHU_LANE_COMMAND(InvertStepsCommand);
+class ReverseStepsCommand final : public FunctionLaneCommand {
+public:
+    ReverseStepsCommand(LaneStateAccess& access, int laneIndex);
+};
+class RotateStepsCommand final : public FunctionLaneCommand {
+public:
+    RotateStepsCommand(LaneStateAccess& access, int laneIndex, int amount);
+};
+class InvertStepsCommand final : public FunctionLaneCommand {
+public:
+    InvertStepsCommand(LaneStateAccess& access, int laneIndex);
+};
 
 // Pattern generation (sec. 24.2.2); deterministic, the caller supplies the seed (D-57).
-PHU_LANE_COMMAND(FillRandomCommand, int probabilityPercent, std::uint32_t seed);
-PHU_LANE_COMMAND(ArithmeticSequenceCommand, int start, int difference, int count);  // active velocity mode
-PHU_LANE_COMMAND(EuclideanPatternCommand, int hits, int steps, int rotation);
+class FillRandomCommand final : public FunctionLaneCommand {
+public:
+    FillRandomCommand(LaneStateAccess& access, int laneIndex, int probabilityPercent, std::uint32_t seed);
+};
+class ArithmeticSequenceCommand final : public FunctionLaneCommand {
+public:
+    ArithmeticSequenceCommand(LaneStateAccess& access, int laneIndex, int start, int difference, int count);
+};
+class EuclideanPatternCommand final : public FunctionLaneCommand {
+public:
+    EuclideanPatternCommand(LaneStateAccess& access, int laneIndex, int hits, int steps, int rotation);
+};
 
 // Step editing (sec. 24.2.3); out-of-range step indices leave the lane unchanged.
-PHU_LANE_COMMAND(SetStepOnCommand, int stepIndex, bool on);
-PHU_LANE_COMMAND(SetStepVelocityCommand, int stepIndex, int value);  // active velocity mode
-PHU_LANE_COMMAND(ClearLaneCommand);
-PHU_LANE_COMMAND(FillLaneCommand);
+class SetStepOnCommand final : public FunctionLaneCommand {
+public:
+    SetStepOnCommand(LaneStateAccess& access, int laneIndex, int stepIndex, bool on);
+};
+class SetStepVelocityCommand final : public FunctionLaneCommand {
+public:
+    SetStepVelocityCommand(LaneStateAccess& access, int laneIndex, int stepIndex, int value);
+};
+class ClearLaneCommand final : public FunctionLaneCommand {
+public:
+    ClearLaneCommand(LaneStateAccess& access, int laneIndex);
+};
+class FillLaneCommand final : public FunctionLaneCommand {
+public:
+    FillLaneCommand(LaneStateAccess& access, int laneIndex);
+};
 
 // Configuration (sec. 24.2.4).
-PHU_LANE_COMMAND(SetInputModeCommand, sequencing::InputMode mode);
-PHU_LANE_COMMAND(SetFollowIndexCommand, int index);
-PHU_LANE_COMMAND(SetFollowChannelCommand, int channel);
-PHU_LANE_COMMAND(SetOutputChannelCommand, int channel);
-PHU_LANE_COMMAND(SetTransposeCommand, int semitones);
-PHU_LANE_COMMAND(SetGateCommand, int percent);
-PHU_LANE_COMMAND(SetVelocityModeCommand, sequencing::VelocityMode mode);
-PHU_LANE_COMMAND(SetStepCountCommand, int count);
-PHU_LANE_COMMAND(SetTimingSourceCommand, TimingSource source);
-PHU_LANE_COMMAND(SetBaseTimingCommand, int baseTimingIndex, sequencing::Subdivision subdivision, int swingPercent);
-PHU_LANE_COMMAND(SetMuteCommand, bool mute);
-PHU_LANE_COMMAND(SetLatchCommand, bool latch);
-PHU_LANE_COMMAND(SetLaneColorCommand, LaneColor color);
-PHU_LANE_COMMAND(SetTextGridCommand, std::string text);  // text always stored; applied only if valid (sec. 5.3)
-
-#undef PHU_LANE_COMMAND
+class SetInputModeCommand final : public FunctionLaneCommand {
+public:
+    SetInputModeCommand(LaneStateAccess& access, int laneIndex, sequencing::InputMode mode);
+};
+class SetFollowIndexCommand final : public FunctionLaneCommand {
+public:
+    SetFollowIndexCommand(LaneStateAccess& access, int laneIndex, int index);
+};
+class SetFollowChannelCommand final : public FunctionLaneCommand {
+public:
+    SetFollowChannelCommand(LaneStateAccess& access, int laneIndex, int channel);
+};
+class SetOutputChannelCommand final : public FunctionLaneCommand {
+public:
+    SetOutputChannelCommand(LaneStateAccess& access, int laneIndex, int channel);
+};
+class SetTransposeCommand final : public FunctionLaneCommand {
+public:
+    SetTransposeCommand(LaneStateAccess& access, int laneIndex, int semitones);
+};
+class SetGateCommand final : public FunctionLaneCommand {
+public:
+    SetGateCommand(LaneStateAccess& access, int laneIndex, int percent);
+};
+class SetVelocityModeCommand final : public FunctionLaneCommand {
+public:
+    SetVelocityModeCommand(LaneStateAccess& access, int laneIndex, sequencing::VelocityMode mode);
+};
+class SetStepCountCommand final : public FunctionLaneCommand {
+public:
+    SetStepCountCommand(LaneStateAccess& access, int laneIndex, int count);
+};
+class SetTimingSourceCommand final : public FunctionLaneCommand {
+public:
+    SetTimingSourceCommand(LaneStateAccess& access, int laneIndex, TimingSource source);
+};
+class SetBaseTimingCommand final : public FunctionLaneCommand {
+public:
+    SetBaseTimingCommand(LaneStateAccess& access, int laneIndex, int baseTimingIndex, sequencing::Subdivision subdivision, int swingPercent);
+};
+class SetMuteCommand final : public FunctionLaneCommand {
+public:
+    SetMuteCommand(LaneStateAccess& access, int laneIndex, bool mute);
+};
+class SetLatchCommand final : public FunctionLaneCommand {
+public:
+    SetLatchCommand(LaneStateAccess& access, int laneIndex, bool latch);
+};
+class SetLaneColorCommand final : public FunctionLaneCommand {
+public:
+    SetLaneColorCommand(LaneStateAccess& access, int laneIndex, LaneColor color);
+};
+class SetTextGridCommand final : public FunctionLaneCommand {
+public:
+    SetTextGridCommand(LaneStateAccess& access, int laneIndex, std::string text);
+};
 
 }  // namespace phu::arpeggiator

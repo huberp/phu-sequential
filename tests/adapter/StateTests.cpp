@@ -10,6 +10,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
+#include <cstdint>
 #include <string>
 
 // M22 adapter: state serialization, migration, presets (sec. 13, #14).
@@ -428,7 +429,7 @@ TEST_CASE("LaneEditHistory: coalesced edits collapse into one undo step", "[M27]
 
     for (int text = 0; text < 3; ++text) {
         history.executeCoalesced("color", [text](phu::arpeggiator::LaneStateAccess& access) {
-            return std::make_unique<phu::arpeggiator::SetLaneColorCommand>(access, 0, phu::arpeggiator::LaneColor{text, 1, 2});
+            return std::make_unique<phu::arpeggiator::SetLaneColorCommand>(access, 0, phu::arpeggiator::LaneColor{static_cast<std::uint8_t>(text), 1, 2});
         });
     }
     history.endGesture();
