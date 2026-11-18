@@ -499,18 +499,18 @@ struct LaneState {                 // composes existing types; no new fields bey
 
 Relationship: `LaneState` is the snapshot of one lane across the host-parameter side (`ParameterSnapshot`, M20) and the pattern side (`PatternDocument`, M21). Applying a `LaneState` writes parameters through APVTS with host notification and the document via `PatternStore` (D-55); the audio thread keeps receiving data only via the existing paths (§7). Version/migration rules are those of M22 (§22.5 = §13).
 
-### 4.11 M27 Lane commands — `LaneCommand.h/.cpp`, `LaneCommands.h/.cpp`, `LaneCommandRegistry.h/.cpp` (planned)
+### 4.11 M27 Lane commands — `LaneCommand.h/.cpp`, `LaneCommands.h/.cpp`, `LaneCommandRegistry.h/.cpp` (base class `LaneCommand`/`LaneStateAccess` implemented, #42; concrete commands and registry planned)
 
 ```cpp
 namespace phu::arpeggiator {
 class LaneCommand : public sequencing::Command {         // §23.3
 public:
-    LaneCommand(int laneIndex, const LaneState& currentState);
+    LaneCommand(LaneStateAccess& access, int laneIndex);   // #42: access instead of a state copy; memento is captured in execute()
     void execute() final;      // savedState = current lane (via LaneStateAccess); doExecute(); write back
     void undo() final;         // write savedState back
 protected:
     virtual void doExecute(LaneState&) = 0;
-    LaneState savedState; int laneIndex;
+    int laneIndex() const;     // savedState_ and access are private
 };
 class LaneStateAccess {        // interface implemented by the adapter (PatternStore + APVTS); lets commands stay JUCE-free
 public: virtual ~LaneStateAccess() = default;

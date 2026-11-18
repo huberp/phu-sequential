@@ -36,6 +36,9 @@ target_sources(SequentialCoreLib PRIVATE
     sequencing/StepData.cpp
     sequencing/VoiceRegistry.h
     sequencing/VoiceRegistry.cpp
+    sequencing/Command.h
+    sequencing/UndoManager.h
+    sequencing/UndoManager.cpp
     arpeggiator/LaneConfiguration.h
     arpeggiator/LaneConfiguration.cpp
     arpeggiator/BlockClock.h
@@ -62,6 +65,8 @@ target_sources(SequentialCoreLib PRIVATE
     arpeggiator/PatternDocument.cpp
     arpeggiator/LaneState.h
     arpeggiator/LaneState.cpp
+    arpeggiator/LaneCommand.h
+    arpeggiator/LaneCommand.cpp
 )
 
 set_target_properties(SequentialCoreLib PROPERTIES
