@@ -14,7 +14,7 @@ using phu::sequencing::constants::lanes::laneCount;
 
 PluginEditor::PluginEditor(PluginProcessor& processor)
     : juce::AudioProcessorEditor(&processor), processorRef(processor), parameterReader_(processor.parameters()),
-      globalBar_(processor.parameters(), processor.presetManager())
+      globalBar_(processor.parameters(), processor.presetManager(), processor.laneEditHistory())
 {
     setLookAndFeel(&lookAndFeel_);
     setWantsKeyboardFocus(true);
@@ -98,6 +98,7 @@ void PluginEditor::changeListenerCallback(juce::ChangeBroadcaster*)
 
 void PluginEditor::timerCallback()
 {
+    globalBar_.refreshUndoState();
     refresh();
     for (int lane = 0; lane < laneCount; ++lane) {
         laneRows_[static_cast<std::size_t>(lane)]->setCurrentStep(processorRef.currentStepIndex(lane));

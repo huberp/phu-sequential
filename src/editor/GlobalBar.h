@@ -1,5 +1,6 @@
 #pragma once
 
+#include "LaneEditHistory.h"
 #include "PresetManager.h"
 #include "editor/EditorControls.h"
 
@@ -9,12 +10,13 @@
 
 namespace phu::plugin::editor {
 
-// Thru, Consume, Chord Input Channel and the preset browser (sec. 13, 14). [MT]
+// Thru, Consume, Chord Input Channel, undo/redo and the preset browser (sec. 13, 14). [MT]
 class GlobalBar final : public juce::Component {
 public:
-    GlobalBar(juce::AudioProcessorValueTreeState&, PresetManager&);
+    GlobalBar(juce::AudioProcessorValueTreeState&, PresetManager&, LaneEditHistory&);
 
     void refreshPresetName();
+    void refreshUndoState();  // enables the buttons from canUndo()/canRedo()
     void resized() override;
 
 private:
@@ -22,9 +24,12 @@ private:
     void showSaveDialog();
 
     PresetManager& presets_;
+    LaneEditHistory& history_;
     juce::ToggleButton thru_{"Thru"};
     juce::ToggleButton consume_{"Consume"};
     juce::Slider chordInputChannel_;
+    juce::TextButton undo_{"Undo"};
+    juce::TextButton redo_{"Redo"};
     juce::Label presetName_;
     juce::TextButton previous_{juce::String::fromUTF8("\xe2\x97\x82")};
     juce::TextButton next_{juce::String::fromUTF8("\xe2\x96\xb8")};
