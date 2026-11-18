@@ -31,7 +31,7 @@ Lane commands are organized into the following categories:
 | Command | Description | Parameters |
 |---------|-------------|------------|
 | SetStepOnCommand | Sets a specific step to on/off | step index, on/off state |
-| SetStepVelocityCommand | Sets velocity for a specific step | step index, velocity value |
+| SetStepVelocityCommand | Sets velocity for a specific step (active velocity mode) | step index, velocity value |
 | ClearLaneCommand | Turns all steps off | None |
 | FillLaneCommand | Turns all steps on | None |
 
@@ -46,88 +46,50 @@ Lane commands are organized into the following categories:
 | SetTransposeCommand | Sets transpose value | semitones (-24 to +24) |
 | SetGateCommand | Sets gate percentage | gate (1-200%) |
 | SetVelocityModeCommand | Sets velocity mode | velocity mode |
+| SetStepCountCommand | Sets step count | count (1-64) |
 | SetTimingSourceCommand | Sets timing source | timing source |
-| SetBaseTimingCommand | Sets base timing | timing value, subdivision, swing |
+| SetBaseTimingCommand | Sets base timing | base timing, subdivision, swing (0-100%) |
+| SetMuteCommand / SetLatchCommand | Sets mute / latch | on/off |
+| SetLaneColorCommand | Sets lane color | RGB |
 | SetTextGridCommand | Sets text grid content | grid string |
 
 ### 24.3 Command Implementation Pattern
 
-All lane commands follow the same pattern:
-
-```cpp
-class ConcreteCommand : public LaneCommand {
-public:
-    ConcreteCommand(int laneIndex, const LaneState& currentState, 
-                    ParamType param1, ParamType param2);
-    
-    void doExecute(LaneState& lane) override {
-        // Modify lane state based on parameters
-    }
-    
-    std::string getName() const override {
-        return "Command Name";
-    }
-};
-```
+Each lane command derives from `LaneCommand` (Section 23.3), takes `(laneIndex, currentState, params...)`, and implements `doExecute(LaneState&)` and `getName()`. Parameters are validated and clamped to the ranges of Sections 4-8 and 12.
 
 ### 24.4 Command Execution
 
 When a lane command is executed:
 
-1. The current lane state is captured into `savedState` (by `LaneCommand` base class)
-2. `doExecute()` is called to modify the lane
-3. The command is pushed onto the undo stack
-4. The redo stack is cleared
+1. `LaneCommand::execute()` captures the lane into `savedState` and calls `doExecute()`
+2. The command is pushed onto the undo stack and the redo stack is cleared
 
-When undoing:
+When undoing, `savedState` is restored and the command moves to the redo stack.
 
-1. The command's `savedState` is restored to the lane
-2. The command is moved from undo stack to redo stack
+When redoing, `execute()` is called again and the command moves back to the undo stack.
 
-When redoing:
+### 24.5 State Capture
 
-1. The command's `doExecute()` is called again
-2. The command is moved from redo stack to undo stack
+All commands store the complete previous state (`savedState`). Commands with random elements (e.g., `FillRandomCommand`) must be deterministic given their parameters: the seed is a command parameter, so redo reproduces the same result.
 
-### 24.5 Non-Deterministic Commands
-
-Commands that produce different results each time (e.g., `FillRandomCommand`) must store the complete previous state in `savedState`. The parameters (seed, probability) are stored separately to allow redo.
-
-### 24.6 Deterministic Commands
-
-Commands that produce the same result when executed multiple times with the same parameters (e.g., `ReverseStepsCommand`, `SetStepOnCommand`) can optionally:
-
-- Store only the parameters and recompute on redo (more memory efficient)
-- Store the complete previous state (simpler, more consistent)
-
-For consistency and simplicity, **all commands store the complete previous state**.
-
-### 24.7 Command Chaining
+### 24.6 Command Chaining
 
 Multiple commands can be chained together to form complex operations:
 
 ```cpp
-// Example: Create a "randomize and rotate" macro
-std::vector<std::unique_ptr<LaneCommand>> commands;
+std::vector<std::unique_ptr<Command>> commands;
 commands.push_back(std::make_unique<FillRandomCommand>(laneIndex, currentState, 50, seed));
 commands.push_back(std::make_unique<RotateStepsCommand>(laneIndex, currentState, 2));
-
-// Execute as a single undoable action
-undoManager.executeMacro(std::move(commands));
+undoManager.executeMacro(std::move(commands)); // single undo step
 ```
 
-The macro command stores all individual commands and can undo/redo them as a group.
+Commands in a macro run in order; undo reverts them in reverse order. Since each command captures its state in `execute()`, no pre-captured state is stale.
 
-### 24.8 UI Integration
+### 24.7 UI Integration
 
-Lane commands are triggered by:
+Lane commands are triggered from the editor (Section 14) by menus, keyboard shortcuts, toolbars, or direct manipulation (e.g., clicking a step). Every user edit of lane state, including parameter changes made in the editor, goes through a command.
 
-- **Menu items**: Each command has a corresponding menu action
-- **Keyboard shortcuts**: Commands can be assigned keyboard shortcuts
-- **Toolbars**: Common commands can be placed on toolbars
-- **Direct manipulation**: Some commands are triggered by direct UI interaction (e.g., clicking a step to toggle it)
-
-### 24.9 Command Discovery
+### 24.8 Command Discovery
 
 The plugin provides a registry of available lane commands:
 

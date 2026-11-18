@@ -15,10 +15,10 @@ Use `docs/module-map.md` for token-efficient module lookup.
 |---------|----------|-------------|------|
 | §1 | [Layers & Dependencies](architecture/01-layers-and-dependencies.md) | Layers, directories, namespaces, targets, dependency graph | ~7.5 KB |
 | §2 | [Units & Data Types](architecture/02-units-and-types.md) | Units, numeric types, core data types | ~2.8 KB |
-| §3 | [Sequencing Modules](architecture/03-sequencing-modules.md) | M01-M11, M18 (lib/sequencing) | ~36 KB |
-| §4 | [Arpeggiator Modules](architecture/04-arpeggiator-modules.md) | M12-M17 (lib/arpeggiator) | ~33 KB |
+| §3 | [Sequencing Modules](architecture/03-sequencing-modules.md) | M01-M11, M18, M25 (lib/sequencing) | ~36 KB |
+| §4 | [Arpeggiator Modules](architecture/04-arpeggiator-modules.md) | M12-M17, M26-M27 (lib/arpeggiator) | ~33 KB |
 | §5 | [Per-Block Flow](architecture/05-per-block-flow.md) | SequencerCore::processBlock flow | ~10.6 KB |
-| §6 | [JUCE Adapter](architecture/06-juce-adapter.md) | M19-M24 (src/) | ~39 KB |
+| §6 | [JUCE Adapter](architecture/06-juce-adapter.md) | M19-M24, adapter part of M26-M27 (src/) | ~39 KB |
 
 ### Cross-Cutting Concerns
 
@@ -32,7 +32,7 @@ Use `docs/module-map.md` for token-efficient module lookup.
 
 | Section | Document | Description | Size |
 |---------|----------|-------------|------|
-| §10 | [Design Decisions](architecture/10-design-decisions.md) | D-1 through D-54 index | ~12 KB |
+| §10 | [Design Decisions](architecture/10-design-decisions.md) | D-1 through D-57 index | ~12 KB |
 | §11 | [Testing Architecture](architecture/11-testing-architecture.md) | Testing architecture (§18) | ~3.4 KB |
 | §12 | [Spec Ambiguities](architecture/12-spec-ambiguities.md) | A-n ambiguities | ~9.7 KB |
 

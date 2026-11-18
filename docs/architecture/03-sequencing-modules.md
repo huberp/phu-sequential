@@ -589,3 +589,30 @@ All operations are [RT] (`noexcept`, O(1), no allocation, a single atomic exchan
 
 ---
 
+### 3.13 M25 Command and undo manager — `Command.h`, `UndoManager.h/.cpp` (planned)
+
+Generic, JUCE-free undo/redo infrastructure (§23; reusable, §15). `namespace phu::sequencing`; not to be confused with `juce::UndoManager` (D-56).
+
+```cpp
+namespace phu::sequencing {
+class Command {
+public:
+    virtual ~Command() = default;
+    virtual void execute() = 0;                          // also used for redo
+    virtual void undo() = 0;
+    [[nodiscard]] virtual std::string getName() const = 0;
+};
+class UndoManager {                                      // [MT] only (§23.8)
+public:
+    explicit UndoManager(std::size_t maxDepth = constants::defaultUndoDepth);   // 100 (§23.7)
+    void execute(std::unique_ptr<Command>);              // execute, push, clear redo stack, trim to maxDepth
+    void executeMacro(std::vector<std::unique_ptr<Command>>);   // ordered execute; one undo step, undone in reverse order
+    void undo(); void redo(); void clear();
+    [[nodiscard]] bool canUndo() const; [[nodiscard]] bool canRedo() const;
+    [[nodiscard]] std::string getUndoName() const;       // empty if none
+    [[nodiscard]] std::string getRedoName() const;
+};
+}
+```
+
+Undo history is not part of the state (§23.5). Depends on: M01 (adds `constants::defaultUndoDepth = 100`, §23.7).

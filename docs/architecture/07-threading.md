@@ -23,6 +23,8 @@
 | State load → audio: complete state (D-52) | `TripleBuffer<PendingState>`; producer `setStateInformation`/preset load under `stateMutex_`; consumer audio at host-block start | `{generation, SequencerConfiguration, PatternSnapshot}` | next block, parameters and patterns together |
 | State load → message: APVTS sync (D-52) | `callAsync` callbacks carrying generation `g`; stale `g` returns early; `parametersSyncedGeneration_` advanced by CAS-max, read by audio (acquire) | parameter values of generation `g` | message-thread latency; audio uses snapshot parameters meanwhile |
 
+Command/undo (§23, M25–M27) is message-thread only: the `UndoManager` and `LaneStateAccess` writes use the existing mutators and APVTS paths above; no new audio-thread path exists.
+
 No lock-free *queue* is needed: all audio-visible data is "latest value" state; the discard state is cumulative and revisioned, so only the latest value matters.
 
 ### 7.3 Preallocated structures (no allocation on the audio thread; sole exception: host output growth, D-54/A-43)

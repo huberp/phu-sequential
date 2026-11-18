@@ -32,10 +32,13 @@ This is a compact token-efficient lookup table for agents working on specific mo
 | M22 State / Presets / Versioning | [06-juce-adapter.md §6.4](architecture/06-juce-adapter.md) | `src/StateSerializer.h`, `.cpp`, `StateMigration.h`, `.cpp`, `PresetManager.h`, `.cpp` (implemented, #14) | `tests/adapter/StateTests.cpp` (SequentialAdapterTests) | §13 | D-28, D-34, D-35, D-47, D-52 | M20, M21 |
 | M23 Editor | [06-juce-adapter.md §6.5](architecture/06-juce-adapter.md) (+ [04-arpeggiator-modules.md §4.9](architecture/04-arpeggiator-modules.md) core) | `src/PluginEditor.h`, `.cpp`, `src/editor/{EditorLayout,EditorControls,EditorLookAndFeel}.h`, `GlobalBar`, `LaneRow`, `LaneControlStrip` (incl. `LaneColorPicker`), `StepDisplay`, `TextGridField` (.h/.cpp; implemented, #15) + core: `lib/arpeggiator/DisplayScale.h`, `.cpp` | (editor is JUCE-dependent, visual verification only) | §14, §15 | D-9, D-36, D-37, D-46, D-47 | M20, M21, M22, M23 core + M05 |
 | M24 Factory presets | [06-juce-adapter.md §6.6](architecture/06-juce-adapter.md) | `presets/factory/*.phuseq` (planned; conditional build) | (embedded via binary data; loaded via M22) | §13, §20 | D-35 | M22 |
+| M25 Command / UndoManager | [03-sequencing-modules.md §3.13](architecture/03-sequencing-modules.md) | `lib/sequencing/Command.h`, `UndoManager.h`, `.cpp` (planned) | UndoManagerTests | §23 | D-56 | M01 |
+| M26 LaneState | [04-arpeggiator-modules.md §4.10](architecture/04-arpeggiator-modules.md) (+ [06 §6.7](architecture/06-juce-adapter.md)) | `lib/arpeggiator/LaneState.h`, `.cpp`; adapter `LaneStateSerializer` (planned) | LaneStateTests; `tests/adapter/StateTests.cpp` | §22 | D-55 | M12, M21, M22 |
+| M27 Lane commands | [04-arpeggiator-modules.md §4.11](architecture/04-arpeggiator-modules.md) (+ [06 §6.7](architecture/06-juce-adapter.md)) | `lib/arpeggiator/LaneCommand.h`, `LaneCommands.h`, `.cpp`, `LaneCommandRegistry.h`, `.cpp` (planned) | LaneCommandTests | §24 | D-55, D-56, D-57 | M25, M26, M05 |
 
 ## Reading Recipe
 
-1. **Identify your module**: Locate M01..M24 in the leftmost column.
+1. **Identify your module**: Locate M01..M27 in the leftmost column.
 2. **Find the spec sections**: The "Spec §" column cites section numbers. Run `grep -n '^## 3\|^## 4\|^## 5' spec/*.md` to find them.
 3. **Read the architecture section**: The "Architecture section" column gives a reference like "4.3". Run `grep -n '^### 4.3' docs/architecture/04-arpeggiator-modules.md` and view that range.
 4. **Look up key decisions**: Each decision D-NN is cited in the architecture section. Search the module section (e.g., 4.3) for "D-NN" to find the rationale.
@@ -44,6 +47,6 @@ This is a compact token-efficient lookup table for agents working on specific mo
 **Notes:**
 - Rows M18—M24 list files as designed in the architecture; only `src/PluginProcessor.*`, `src/PluginEditor.*` and `lib/arpeggiator/DisplayScale.*` exist today. Verify with `glob` before relying on a path.
 - *Planned* files (TripleBuffer, adapter tests, factory presets) are not yet in the repo; see architecture for their design.
-- Modules are stably numbered M01..M24 per [docs/architecture/01-layers-and-dependencies.md](architecture/01-layers-and-dependencies.md) §1.1 and used by [test-matrix.md](test-matrix.md).
+- Modules are stably numbered M01..M27 per [docs/architecture/01-layers-and-dependencies.md](architecture/01-layers-and-dependencies.md) §1.1 and used by [test-matrix.md](test-matrix.md).
 - All file paths are relative to the repo root; they exist unless marked "planned".
 - Spec citations like "§5.1" refer to top-level sections (## heading); architecture citations like "D-12" refer to rationales within module sections (### heading).
