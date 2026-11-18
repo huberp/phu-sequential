@@ -329,3 +329,19 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 
 ## Spec observations
 None blocking. REQ-21-5: spec silent whether a Note-Off for a note begun during bypass passes after bypass ends; tests follow arch decision when #11 lands. Re-check REQ-9.1-5 (retrigger vs pass-through ownership) and REQ-21-5 (post-bypass raw Note-Off) against arch decisions D-17/A-numbers when #9/#11 implement them.
+
+## §22–§24 Lane state, commands, undo
+
+| ID | § | Rule | Module | Scenario | Issue | Status |
+|---|---|---|---|---|---|---|
+| REQ-22-1 | 22.3 | Value semantics: copy is deep, `==` compares all properties | M26 | copy, mutate copy → original unchanged; equal after identical mutation | – | todo |
+| REQ-22-2 | 22.2, 22.4 | ValueTree round trip per lane; 8 lanes in plugin state | M26,M22 | serialize/deserialize all lanes → equal | – | todo |
+| REQ-22-3 | 22.5 | Versioning: older migrated, unknown ignored, invalid clamped, newer → default | M26,M22 | per case, one lane tree | – | todo |
+| REQ-23-1 | 23.4 | execute/undo/redo restore exact state; new execute clears redo | M25,M27 | execute A, B; undo, undo, redo; execute C → redo empty | – | todo |
+| REQ-23-2 | 23.4 | `canUndo/canRedo/getUndoName/getRedoName` | M25 | names follow stacks; empty when none | – | todo |
+| REQ-23-3 | 23.7 | Undo depth bounded (default 100) | M25 | 101 commands → oldest dropped | – | todo |
+| REQ-23-4 | 23.6 | Undo yields state equal to the saved `LaneState` | M27,M26 | any command, undo → `==` previous | – | todo |
+| REQ-24-1 | 24.2 | Each command produces the specified lane change within ranges; out-of-range clamped | M27 | per command incl. gate 1–200, transpose ±24, step count 1–64 | – | todo |
+| REQ-24-2 | 24.5 | FillRandom deterministic for equal seed/probability; redo reproduces | M27 | execute, undo, redo → same pattern | – | todo |
+| REQ-24-3 | 24.6 | Macro = one undo step, reverse-order undo | M25,M27 | FillRandom + Rotate; one undo → original | – | todo |
+| REQ-24-4 | 24.8 | Registry creates commands by name; unknown name → null | M27 | register, create, list names | – | todo |

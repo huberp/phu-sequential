@@ -14,17 +14,13 @@ All state-modifying operations are encapsulated as `Command` objects:
 class Command {
 public:
     virtual ~Command() = default;
-    virtual void execute() = 0;
+    virtual void execute() = 0; // also used for redo
     virtual void undo() = 0;
     virtual std::string getName() const = 0;
 };
 ```
 
-Each command:
-- Encapsulates a single logical operation
-- Knows how to perform the operation (`execute()`)
-- Knows how to reverse the operation (`undo()`)
-- Provides a human-readable name for UI display
+Each command encapsulates a single logical operation, can perform (`execute()`) and reverse (`undo()`) it, and provides a human-readable name for the UI.
 
 ### 23.3 Lane Command Base Class
 
@@ -35,17 +31,16 @@ class LaneCommand : public Command {
 protected:
     LaneState savedState;
     int laneIndex;
-    
+    virtual void doExecute(LaneState& lane) = 0;
+
 public:
     LaneCommand(int laneIndex, const LaneState& currentState);
-    void undo() override; // Restores savedState to the lane
+    void execute() override; // captures savedState, then doExecute()
+    void undo() override;    // restores savedState to the lane
 };
 ```
 
-The `LaneCommand` base class automatically:
-- Stores the lane's state before modification (`savedState`)
-- Restores this state when `undo()` is called
-- Handles the lane index for multi-lane operations
+The base class stores the lane state before each execution (`savedState`) and restores it on `undo()`.
 
 ### 23.4 Undo Manager
 
@@ -55,6 +50,7 @@ The `UndoManager` class manages the undo/redo stack:
 class UndoManager {
 public:
     void execute(std::unique_ptr<Command> command);
+    void executeMacro(std::vector<std::unique_ptr<Command>> commands); // one undo step
     void undo();
     void redo();
     bool canUndo() const;
@@ -62,50 +58,23 @@ public:
     std::string getUndoName() const;
     std::string getRedoName() const;
     void clear();
-    
-    // For state persistence
-    void saveState();
-    void restoreState();
 };
 ```
 
-The undo manager:
-- Maintains a stack of executed commands (undo stack)
-- Maintains a stack of undone commands (redo stack)
-- Clears the redo stack when a new command is executed
-- Provides methods to check if undo/redo is available
-- Provides command names for UI display
+The undo manager keeps an undo stack of executed commands and a redo stack of undone commands; executing a new command clears the redo stack.
 
 ### 23.5 Reusability
 
-The command and undo infrastructure is designed to be reusable:
-
-1. **Decoupled from plugin specifics**: Commands operate on data structures (`LaneState`), not directly on plugin internals
-2. **Generic Command base class**: Can be extended for non-lane operations (e.g., global settings)
-3. **Standalone UndoManager**: Can be used in any context that needs undo/redo
-4. **Testable**: Commands can be unit tested independently
+`Command` and `UndoManager` are pure C++20 without JUCE (Section 15), operate on data structures (`LaneState`) rather than plugin internals, can be extended for non-lane operations (e.g., global settings), and are unit-testable independently (Section 18). Undo history is not part of the VST3 state.
 
 ### 23.6 Integration with LaneState
 
-The command infrastructure leverages `LaneState` (Section 22) for:
-
-- **State capture**: Commands store `LaneState` mementos before modification
-- **State restoration**: Commands restore `LaneState` mementos when undoing
-- **Consistency**: Same data representation for commands and VST3 state
-
-This ensures that undo operations produce identical results to loading saved state.
+Commands store `LaneState` (Section 22) mementos before modification and restore them on undo, so undo produces the same result as loading saved state.
 
 ### 23.7 Memory Management
 
-- Commands are stored as `std::unique_ptr<Command>` in the undo/redo stacks
-- Each command stores only the minimum necessary state (typically one `LaneState`)
-- Undo stack depth is configurable (default: 100 commands)
-- Memory usage is bounded and predictable
+Commands are stored as `std::unique_ptr<Command>`; each stores one `LaneState` at most. The undo stack depth is bounded and configurable (default: 100 commands).
 
 ### 23.8 Thread Safety
 
-The command and undo infrastructure is designed for the UI thread:
-
-- All command execution and undo/redo operations occur on the UI thread
-- The audio thread continues to use the current state during modifications
-- State changes are atomic from the audio thread's perspective
+All command execution and undo/redo occur on the UI thread. Resulting lane changes reach the audio thread only via the mechanisms of Section 17 (atomics, lock-free queues) and take effect as glitch-free live changes (Section 11); the audio thread never touches the command stacks.
