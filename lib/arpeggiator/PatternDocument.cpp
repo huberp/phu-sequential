@@ -115,12 +115,14 @@ PatternSnapshot PatternDocument::makeSnapshot() const {
     return snapshot;
 }
 
+bool operator==(const LaneDocument& x, const LaneDocument& y) noexcept {
+    return x.pattern.steps == y.pattern.steps && x.pattern.appliedTextGrid == y.pattern.appliedTextGrid &&
+           x.textGridText == y.textGridText && x.color == y.color;
+}
+
 bool operator==(const PatternDocument& a, const PatternDocument& b) noexcept {
     for (int i = 0; i < lanes::laneCount; ++i) {
-        const auto& x = a.lanes_[static_cast<std::size_t>(i)];
-        const auto& y = b.lanes_[static_cast<std::size_t>(i)];
-        if (!(x.pattern.steps == y.pattern.steps) || !(x.pattern.appliedTextGrid == y.pattern.appliedTextGrid) ||
-            x.textGridText != y.textGridText || !(x.color == y.color)) {
+        if (!(a.lanes_[static_cast<std::size_t>(i)] == b.lanes_[static_cast<std::size_t>(i)])) {
             return false;
         }
     }

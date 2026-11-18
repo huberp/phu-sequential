@@ -24,6 +24,7 @@ add_executable(SequentialCoreTests
     core/SequencerCoreTests.cpp
     core/ConfigurationBuilderTests.cpp
     core/PatternDocumentTests.cpp
+    core/LaneStateTests.cpp
 )
 
 target_include_directories(SequentialCoreTests PRIVATE

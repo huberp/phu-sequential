@@ -334,9 +334,9 @@ None blocking. REQ-21-5: spec silent whether a Note-Off for a note begun during 
 
 | ID | § | Rule | Module | Scenario | Issue | Status |
 |---|---|---|---|---|---|---|
-| REQ-22-1 | 22.3 | Value semantics: copy is deep, `==` compares all properties | M26 | copy, mutate copy → original unchanged; equal after identical mutation | – | todo |
-| REQ-22-2 | 22.2, 22.4 | ValueTree round trip per lane; 8 lanes in plugin state | M26,M22 | serialize/deserialize all lanes → equal | – | todo |
-| REQ-22-3 | 22.5 | Versioning: older migrated, unknown ignored, invalid clamped, newer → default | M26,M22 | per case, one lane tree | – | todo |
+| REQ-22-1 | 22.3 | Value semantics: copy is deep, `==` compares all properties | M26 | copy, mutate copy → original unchanged; equal after identical mutation | – | done |
+| REQ-22-2 | 22.2, 22.4 | ValueTree round trip per lane; 8 lanes in plugin state | M26,M22 | serialize/deserialize all lanes → equal | – | done |
+| REQ-22-3 | 22.5 | Versioning: older migrated, unknown ignored, invalid clamped, newer → default | M26,M22 | per case, one lane tree | – | done |
 | REQ-23-1 | 23.4 | execute/undo/redo restore exact state; new execute clears redo | M25,M27 | execute A, B; undo, undo, redo; execute C → redo empty | – | todo |
 | REQ-23-2 | 23.4 | `canUndo/canRedo/getUndoName/getRedoName` | M25 | names follow stacks; empty when none | – | todo |
 | REQ-23-3 | 23.7 | Undo depth bounded (default 100) | M25 | 101 commands → oldest dropped | – | todo |

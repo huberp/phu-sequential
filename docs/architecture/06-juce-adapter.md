@@ -418,6 +418,6 @@ Embedded via the conditional `SequentialFactoryPresets` binary-data target of §
 
 ---
 
-### 6.7 M26/M27 adapter part — `LaneStateSerializer`, `LaneStateAccess` implementation (planned)
+### 6.7 M26/M27 adapter part — `LaneStateSerializer`, `LaneStateAccess` implementation (serializer implemented, #41; access planned)
 
-`LaneState::toValueTree()/fromValueTree()` (§22.2) are free functions in `phu::plugin` reusing the M22 per-lane serialization (one child per lane, same format version/migration as state and presets). The processor owns one `sequencing::UndoManager` and a `LaneStateAccess` over `PatternStore` + APVTS; all editor edits go through `LaneCommand`s on the message thread (D-55). After `setStateInformation`/preset load the undo history is cleared (A-47).
+`laneToValueTree(LaneState, laneIndex)` / `laneFromValueTree(tree, laneIndex)` (`src/LaneStateSerializer.h`, §22.2; implemented in `StateSerializer.cpp`, which owns the shared field readers) plus `captureLaneState`/`applyLaneState` (APVTS with host notification, D-55) are free functions in `phu::plugin` reusing the M22 per-lane serialization (one child per lane, same format version/migration as state and presets). The processor owns one `sequencing::UndoManager` and a `LaneStateAccess` over `PatternStore` + APVTS; all editor edits go through `LaneCommand`s on the message thread (D-55). After `setStateInformation`/preset load the undo history is cleared (A-47).

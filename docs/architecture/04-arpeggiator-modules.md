@@ -482,17 +482,18 @@ The editor computes layouts from the *requested* configuration (parameters + doc
 
 ---
 
-### 4.10 M26 Lane state — `LaneState.h/.cpp` (planned)
+### 4.10 M26 Lane state — `LaneState.h/.cpp` (implemented, #41)
 
 Canonical per-lane value (§22): everything of one lane except host-parameter authority. Pure C++ (§22.2); `ValueTree` conversion is adapter code (§6.7).
 
 ```cpp
 namespace phu::arpeggiator {
 struct LaneState {                 // composes existing types; no new fields beyond §22.1
-    LaneConfiguration configuration;   // M12: all lane parameters incl. mute, latch (§12 parameters)
+    LaneParameters configuration;      // M12: all lane parameters incl. mute, latch (§12 parameters)
     LaneDocument      document;        // §4.8: LanePattern (steps, velocities), textGridText, applied grid, color
-    friend bool operator==(const LaneState&, const LaneState&) = default;   // copy = deep value copy (§22.3)
+    friend bool operator==(const LaneState&, const LaneState&) = default;   // copy = deep value copy (§22.3); LaneDocument == ignores revision counters
 };
+[[nodiscard]] LaneState defaultLaneState(int laneIndex);   // §20 defaults
 }
 ```
 

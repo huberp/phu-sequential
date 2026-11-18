@@ -33,6 +33,7 @@ set(PHU_PLUGIN_SOURCES
     PatternStore.cpp
     StateMigration.h
     StateMigration.cpp
+    LaneStateSerializer.h
     StateSerializer.h
     StateSerializer.cpp
     PresetManager.h

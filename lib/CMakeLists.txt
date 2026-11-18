@@ -60,6 +60,8 @@ target_sources(SequentialCoreLib PRIVATE
     arpeggiator/ConfigurationBuilder.cpp
     arpeggiator/PatternDocument.h
     arpeggiator/PatternDocument.cpp
+    arpeggiator/LaneState.h
+    arpeggiator/LaneState.cpp
 )
 
 set_target_properties(SequentialCoreLib PROPERTIES
