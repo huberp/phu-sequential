@@ -1,6 +1,6 @@
 #pragma once
 
-#include "PatternStore.h"
+#include "LaneEditHistory.h"
 #include "arpeggiator/LaneConfiguration.h"
 #include "editor/EditorControls.h"
 #include "editor/EditorLayout.h"
@@ -15,14 +15,14 @@ namespace phu::plugin::editor {
 // Swatch button; click opens a CallOutBox with a ColourSelector (no alpha). Affects only this lane (sec. 14). [MT]
 class LaneColorPicker final : public juce::Component {
 public:
-    LaneColorPicker(PatternStore&, int laneIndex);
+    LaneColorPicker(LaneEditHistory&, int laneIndex);
 
     void setColour(juce::Colour);
     void paint(juce::Graphics&) override;
     void mouseUp(const juce::MouseEvent&) override;
 
 private:
-    PatternStore& store_;
+    LaneEditHistory& edits_;
     int laneIndex_;
     juce::Colour colour_;
 };
@@ -30,7 +30,7 @@ private:
 // All lane parameters via APVTS attachments (sec. 12, 14). Lays itself out into the regions of a lane row. [MT]
 class LaneControlStrip final {
 public:
-    LaneControlStrip(juce::AudioProcessorValueTreeState&, PatternStore&, int laneIndex, juce::Component& parent);
+    LaneControlStrip(juce::AudioProcessorValueTreeState&, LaneEditHistory&, int laneIndex, juce::Component& parent);
 
     void layOut(const layout::LaneRowRegions&);
     // Enabled/visible states derived from the lane parameters (sec. 14, D-46).

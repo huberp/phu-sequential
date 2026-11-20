@@ -2,6 +2,7 @@
 
 #include "editor/EditorLookAndFeel.h"
 
+#include <string>
 #include <algorithm>
 
 namespace phu::plugin::editor {
@@ -17,7 +18,7 @@ int characterIndex(const std::string& text, std::size_t byteOffset)
 
 }  // namespace
 
-TextGridField::TextGridField(PatternStore& store, int laneIndex) : store_(store), laneIndex_(laneIndex)
+TextGridField::TextGridField(LaneEditHistory& edits, int laneIndex) : edits_(edits), laneIndex_(laneIndex)
 {
     editor_.setMultiLine(false);
     editor_.setTextToShowWhenEmpty("no grid", juce::Colours::grey);
@@ -36,7 +37,11 @@ void TextGridField::setText(const std::string& text)
 
 void TextGridField::textChanged()
 {
-    store_.setTextGridText(laneIndex_, editor_.getText().toStdString());
+    const int lane = laneIndex_;
+    auto text = editor_.getText().toStdString();
+    edits_.executeCoalesced("textGrid" + std::to_string(lane), [lane, text](arpeggiator::LaneStateAccess& access) {
+        return std::make_unique<arpeggiator::SetTextGridCommand>(access, lane, text);
+    });
     refreshErrors();
 }
 

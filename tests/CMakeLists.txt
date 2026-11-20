@@ -24,6 +24,9 @@ add_executable(SequentialCoreTests
     core/SequencerCoreTests.cpp
     core/ConfigurationBuilderTests.cpp
     core/PatternDocumentTests.cpp
+    core/LaneStateTests.cpp
+    core/UndoManagerTests.cpp
+    core/LaneCommandTests.cpp
 )
 
 target_include_directories(SequentialCoreTests PRIVATE
@@ -72,6 +75,7 @@ add_executable(SequentialAdapterTests
     ../src/PatternStore.cpp
     ../src/StateMigration.cpp
     ../src/StateSerializer.cpp
+    ../src/LaneEditHistory.cpp
     ../src/PresetManager.cpp
 )
 

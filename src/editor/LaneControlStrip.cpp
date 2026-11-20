@@ -4,6 +4,8 @@
 #include "sequencing/Constants.h"
 #include "sequencing/sources/SourceSelection.h"
 
+#include <string>
+
 namespace phu::plugin::editor {
 
 namespace {
@@ -22,7 +24,7 @@ void styleToggle(juce::TextButton& button)
 
 }  // namespace
 
-LaneColorPicker::LaneColorPicker(PatternStore& store, int laneIndex) : store_(store), laneIndex_(laneIndex) {}
+LaneColorPicker::LaneColorPicker(LaneEditHistory& edits, int laneIndex) : edits_(edits), laneIndex_(laneIndex) {}
 
 void LaneColorPicker::setColour(juce::Colour colour)
 {
@@ -51,36 +53,44 @@ void LaneColorPicker::mouseUp(const juce::MouseEvent& event)
 
     class Picker final : public juce::Component, private juce::ChangeListener {
     public:
-        Picker(PatternStore& store, int lane, juce::Colour initial)
+        Picker(LaneEditHistory& edits, int lane, juce::Colour initial)
             : selector_(juce::ColourSelector::showColourspace | juce::ColourSelector::showSliders, 4, 4),
-              store_(store), lane_(lane)
+              edits_(edits), lane_(lane)
         {
             selector_.setCurrentColour(initial, juce::dontSendNotification);
             selector_.addChangeListener(this);
             addAndMakeVisible(selector_);
             setSize(240, 260);
         }
-        ~Picker() override { selector_.removeChangeListener(this); }
+        ~Picker() override
+        {
+            selector_.removeChangeListener(this);
+            edits_.endGesture();
+        }
         void resized() override { selector_.setBounds(getLocalBounds()); }
 
     private:
         void changeListenerCallback(juce::ChangeBroadcaster*) override
         {
             const auto colour = selector_.getCurrentColour();
-            store_.setLaneColor(lane_, {colour.getRed(), colour.getGreen(), colour.getBlue()});
+            const arpeggiator::LaneColor color{colour.getRed(), colour.getGreen(), colour.getBlue()};
+            const int lane = lane_;
+            edits_.executeCoalesced("laneColor" + std::to_string(lane), [lane, color](arpeggiator::LaneStateAccess& access) {
+                return std::make_unique<arpeggiator::SetLaneColorCommand>(access, lane, color);
+            });
         }
         juce::ColourSelector selector_;
-        PatternStore& store_;
+        LaneEditHistory& edits_;
         int lane_;
     };
 
-    juce::CallOutBox::launchAsynchronously(std::make_unique<Picker>(store_, laneIndex_, colour_),
+    juce::CallOutBox::launchAsynchronously(std::make_unique<Picker>(edits_, laneIndex_, colour_),
                                            getScreenBounds(), nullptr);
 }
 
-LaneControlStrip::LaneControlStrip(juce::AudioProcessorValueTreeState& apvts, PatternStore& store, int laneIndex,
+LaneControlStrip::LaneControlStrip(juce::AudioProcessorValueTreeState& apvts, LaneEditHistory& edits, int laneIndex,
                                    juce::Component& parent)
-    : apvts_(apvts), laneIndex_(laneIndex), colorPicker_(store, laneIndex)
+    : apvts_(apvts), laneIndex_(laneIndex), colorPicker_(edits, laneIndex)
 {
     for (auto* component : std::initializer_list<juce::Component*>{
              &mute_, &latch_, &inputMode_, &followIndex_, &followChannel_, &outputChannel_, &transpose_, &gate_,

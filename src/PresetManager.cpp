@@ -52,6 +52,9 @@ LoadOutcome PresetManager::loadPreset(const PresetInfo& preset) {
     const auto result = fromXmlText(preset.file.loadFileAsString());
     applyState(result.data, apvts_, store_);
     currentName_ = preset.name;
+    if (onStateLoaded) {
+        onStateLoaded();
+    }
     return result.outcome;
 }
 

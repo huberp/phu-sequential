@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 
 namespace phu::sequencing::constants {
@@ -116,6 +117,8 @@ inline constexpr int statusRefreshHz         = 30;
 namespace state {
 inline constexpr int currentFormatVersion = 1;
 } // namespace state
+
+inline constexpr std::size_t defaultUndoDepth = 100;  // sec. 23.7
 
 } // namespace phu::sequencing::constants
 

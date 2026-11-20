@@ -4,6 +4,7 @@
 #include "editor/EditorLookAndFeel.h"
 #include "sequencing/velocity/VelocityModeRegistry.h"
 
+#include <string>
 #include <algorithm>
 #include <cmath>
 
@@ -20,7 +21,7 @@ const sequencing::VelocityModeDefinition& definitionOf(sequencing::VelocityMode 
 
 }  // namespace
 
-StepDisplay::StepDisplay(PatternStore& store, int laneIndex) : store_(store), laneIndex_(laneIndex) {}
+StepDisplay::StepDisplay(LaneEditHistory& edits, int laneIndex) : edits_(edits), laneIndex_(laneIndex) {}
 
 void StepDisplay::setState(const StepDisplayState& state)
 {
@@ -147,7 +148,11 @@ void StepDisplay::mouseDown(const juce::MouseEvent& event)
         return;
     }
     if (event.y < layout::padHeight + layout::gap / 2) {
-        store_.setStepEnabled(laneIndex_, step, !state_.pattern.step(step).enabled);
+        const int lane = laneIndex_;
+        const bool enabled = !state_.pattern.step(step).enabled;
+        edits_.execute([=](arpeggiator::LaneStateAccess& access) {
+            return std::make_unique<arpeggiator::SetStepOnCommand>(access, lane, step, enabled);
+        });
     } else if (barsEnabled()) {
         draggedStep_ = step;
         applyDrag(event.y);
@@ -164,6 +169,7 @@ void StepDisplay::mouseDrag(const juce::MouseEvent& event)
 void StepDisplay::mouseUp(const juce::MouseEvent&)
 {
     draggedStep_ = -1;
+    edits_.endGesture();
     repaint();
 }
 
@@ -171,7 +177,12 @@ void StepDisplay::applyDrag(int y)
 {
     const int value = valueAt(draggedStep_, y);
     state_.pattern.setValue(draggedStep_, state_.velocityMode, value);  // immediate feedback; the store confirms
-    store_.setStepValue(laneIndex_, draggedStep_, state_.velocityMode, value);
+    const int lane = laneIndex_;
+    const int step = draggedStep_;
+    edits_.executeCoalesced("stepValue" + std::to_string(lane) + ":" + std::to_string(step),
+                            [=](arpeggiator::LaneStateAccess& access) {
+                                return std::make_unique<arpeggiator::SetStepVelocityCommand>(access, lane, step, value);
+                            });
     repaint();
 }
 

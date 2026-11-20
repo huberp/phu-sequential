@@ -482,34 +482,35 @@ The editor computes layouts from the *requested* configuration (parameters + doc
 
 ---
 
-### 4.10 M26 Lane state — `LaneState.h/.cpp` (planned)
+### 4.10 M26 Lane state — `LaneState.h/.cpp` (implemented, #41)
 
 Canonical per-lane value (§22): everything of one lane except host-parameter authority. Pure C++ (§22.2); `ValueTree` conversion is adapter code (§6.7).
 
 ```cpp
 namespace phu::arpeggiator {
 struct LaneState {                 // composes existing types; no new fields beyond §22.1
-    LaneConfiguration configuration;   // M12: all lane parameters incl. mute, latch (§12 parameters)
+    LaneParameters configuration;      // M12: all lane parameters incl. mute, latch (§12 parameters)
     LaneDocument      document;        // §4.8: LanePattern (steps, velocities), textGridText, applied grid, color
-    friend bool operator==(const LaneState&, const LaneState&) = default;   // copy = deep value copy (§22.3)
+    friend bool operator==(const LaneState&, const LaneState&) = default;   // copy = deep value copy (§22.3); LaneDocument == ignores revision counters
 };
+[[nodiscard]] LaneState defaultLaneState(int laneIndex);   // §20 defaults
 }
 ```
 
 Relationship: `LaneState` is the snapshot of one lane across the host-parameter side (`ParameterSnapshot`, M20) and the pattern side (`PatternDocument`, M21). Applying a `LaneState` writes parameters through APVTS with host notification and the document via `PatternStore` (D-55); the audio thread keeps receiving data only via the existing paths (§7). Version/migration rules are those of M22 (§22.5 = §13).
 
-### 4.11 M27 Lane commands — `LaneCommand.h/.cpp`, `LaneCommands.h/.cpp`, `LaneCommandRegistry.h/.cpp` (planned)
+### 4.11 M27 Lane commands — `LaneCommand.h/.cpp`, `LaneCommands.h/.cpp`, `LaneCommandRegistry.h/.cpp` (implemented, #42/#43)
 
 ```cpp
 namespace phu::arpeggiator {
 class LaneCommand : public sequencing::Command {         // §23.3
 public:
-    LaneCommand(int laneIndex, const LaneState& currentState);
+    LaneCommand(LaneStateAccess& access, int laneIndex);   // #42: access instead of a state copy; memento is captured in execute()
     void execute() final;      // savedState = current lane (via LaneStateAccess); doExecute(); write back
     void undo() final;         // write savedState back
 protected:
     virtual void doExecute(LaneState&) = 0;
-    LaneState savedState; int laneIndex;
+    int laneIndex() const;     // savedState_ and access are private
 };
 class LaneStateAccess {        // interface implemented by the adapter (PatternStore + APVTS); lets commands stay JUCE-free
 public: virtual ~LaneStateAccess() = default;
@@ -518,4 +519,4 @@ public: virtual ~LaneStateAccess() = default;
 }
 ```
 
-Concrete commands (§24.2): Reverse/Rotate/Invert steps; FillRandom (seed + probability, deterministic via a local PRNG, not `std::rand`), ArithmeticSequence, Euclidean; SetStepOn/SetStepVelocity/ClearLane/FillLane; Set{InputMode, FollowIndex, FollowChannel, OutputChannel, Transpose, Gate, VelocityMode, StepCount, TimingSource, BaseTiming, TextGrid, Mute, Latch, LaneColor}. Inputs are clamped/validated with the M01 limits; step operations act on the lane's active step count. `LaneCommandRegistry` (§24.8) maps name → factory; owned by the adapter and passed by reference (no global singleton, D-56). Depends on: M25, M26, M05 (text grid), M01.
+Concrete commands (§24.2): Reverse/Rotate/Invert steps; FillRandom (seed + probability, deterministic via a local PRNG, not `std::rand`), ArithmeticSequence, Euclidean; SetStepOn/SetStepVelocity/ClearLane/FillLane; Set{InputMode, FollowIndex, FollowChannel, OutputChannel, Transpose, Gate, VelocityMode, StepCount, TimingSource, BaseTiming, TextGrid, Mute, Latch, LaneColor}. Inputs are clamped/validated with the M01 limits; step operations act on the lane's active step count. Commands are constructed as `(LaneStateAccess&, int lane, args...)`; configuration commands clamp via `clampLaneParameters` and keep I-1 (`applyStepCountChange`); `SetBaseTiming(index, subdivision, swing)`; `FillRandom` seed is `uint32_t` (splitmix64). `LaneCommandRegistry` (§24.8) maps name (without the `Command` suffix) → `Factory(LaneStateAccess&, int lane, const CommandArguments{numbers, text}&)`; `createCommand(name, access, lane, args)` returns `nullptr` for unknown names; owned by the adapter and passed by reference (no global singleton, D-56). Depends on: M25, M26, M05 (text grid), M01.

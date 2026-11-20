@@ -27,6 +27,7 @@ public:
 
     void paint(juce::Graphics& g) override;
     void resized() override;
+    bool keyPressed(const juce::KeyPress&) override;
 
 private:
     void timerCallback() override;

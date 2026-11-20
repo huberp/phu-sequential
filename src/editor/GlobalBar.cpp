@@ -7,7 +7,8 @@
 
 namespace phu::plugin::editor {
 
-GlobalBar::GlobalBar(juce::AudioProcessorValueTreeState& apvts, PresetManager& presets) : presets_(presets)
+GlobalBar::GlobalBar(juce::AudioProcessorValueTreeState& apvts, PresetManager& presets, LaneEditHistory& history)
+    : presets_(presets), history_(history)
 {
     thruAttachment_ = std::make_unique<juce::ButtonParameterAttachment>(
         *apvts.getParameter(juce::String(parameter_ids::thru.data())), thru_);
@@ -23,14 +24,23 @@ GlobalBar::GlobalBar(juce::AudioProcessorValueTreeState& apvts, PresetManager& p
 
     previous_.onClick = [this] { presets_.loadPrevious(); refreshPresetName(); };
     next_.onClick = [this] { presets_.loadNext(); refreshPresetName(); };
+    undo_.onClick = [this] { history_.undo(); refreshUndoState(); };
+    redo_.onClick = [this] { history_.redo(); refreshUndoState(); };
     save_.onClick = [this] { showSaveDialog(); };
     load_.onClick = [this] { showLoadMenu(); };
 
     for (auto* component : std::initializer_list<juce::Component*>{
-             &thru_, &consume_, &chordInputChannel_, &presetName_, &previous_, &next_, &save_, &load_}) {
+             &thru_, &consume_, &chordInputChannel_, &undo_, &redo_, &presetName_, &previous_, &next_, &save_, &load_}) {
         addAndMakeVisible(*component);
     }
     refreshPresetName();
+    refreshUndoState();
+}
+
+void GlobalBar::refreshUndoState()
+{
+    undo_.setEnabled(history_.canUndo());
+    redo_.setEnabled(history_.canRedo());
 }
 
 void GlobalBar::refreshPresetName()
@@ -85,6 +95,10 @@ void GlobalBar::resized()
     consume_.setBounds(row(100));
     area.removeFromLeft(layout::gap);
     chordInputChannel_.setBounds(row(200));
+    area.removeFromLeft(layout::margin * 2);
+    undo_.setBounds(row(60));
+    area.removeFromLeft(layout::gap);
+    redo_.setBounds(row(60));
     area.removeFromLeft(layout::margin * 2);
 
     save_.setBounds(area.removeFromRight(70).withSizeKeepingCentre(70, unit));

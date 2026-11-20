@@ -1,5 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include "LaneEditHistory.h"
 #include "ParameterLayout.h"
 #include "PatternStore.h"
 #include "PresetManager.h"
@@ -9,6 +10,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
+#include <cstdint>
 #include <string>
 
 // M22 adapter: state serialization, migration, presets (sec. 13, #14).
@@ -314,4 +316,125 @@ TEST_CASE("Presets: a newer-version preset file applies the default state", "[M2
     CHECK(manager.loadPreset(presets[0]) == LoadOutcome::rejectedNewerVersion);
     CHECK(captureState(apvts, store).parameters == defaultSequencerConfiguration());
     folder.deleteRecursively();
+}
+
+TEST_CASE("LaneState: per-lane ValueTree round trip incl. all 8 lanes", "[M26][M22][REQ-22-2]") {
+    const auto state = makeFilledState();
+    auto root = toValueTree(state, StateKind::state);
+
+    int found = 0;
+    for (int i = 0; i < lanes::laneCount; ++i) {
+        const LaneState lane{state.parameters.lanes[static_cast<std::size_t>(i)], state.document.lane(i)};
+        const auto tree = laneToValueTree(lane, i);
+        const auto loaded = laneFromValueTree(tree, i);
+        CHECK(loaded.valid);
+        CHECK_FALSE(loaded.clamped);
+        CHECK(loaded.state == lane);
+        // Same serialization as the child inside the plugin state.
+        CHECK(tree.isEquivalentTo(laneTree(root, i + 1)));
+        ++found;
+    }
+    CHECK(found == lanes::laneCount);
+    CHECK_FALSE(laneFromValueTree(juce::ValueTree("Other"), 3).valid);
+    CHECK(laneFromValueTree(juce::ValueTree{}, 3).state == defaultLaneState(3));
+}
+
+TEST_CASE("LaneState: lane tree loading ignores unknown and clamps invalid fields", "[M26][M22][REQ-22-3]") {
+    auto tree = laneToValueTree(defaultLaneState(1), 1);
+    tree.setProperty("futureField", 1, nullptr);
+    tree.appendChild(juce::ValueTree("FutureChild"), nullptr);
+    CHECK(laneFromValueTree(tree, 1).state == defaultLaneState(1));
+    CHECK_FALSE(laneFromValueTree(tree, 1).clamped);
+
+    tree.setProperty("gate", 999, nullptr);
+    const auto loaded = laneFromValueTree(tree, 1);
+    CHECK(loaded.clamped);
+    CHECK(loaded.state.configuration.gatePercent == lanes::maximumGatePercent);
+}
+
+TEST_CASE("LaneState: older lane is migrated, newer version falls back to default", "[M26][M22][REQ-22-3]") {
+    constexpr MigrationFunction chain[] = {[](juce::ValueTree tree) {
+        for (auto child : tree) {
+            if (child.hasType("Lane") && child.hasProperty("legacyGate")) {
+                child.setProperty("gate", child.getProperty("legacyGate"), nullptr);
+                child.removeProperty("legacyGate", nullptr);
+            }
+        }
+        tree.setProperty("formatVersion", 2, nullptr);
+        return tree;
+    }};
+
+    auto lane = laneToValueTree(defaultLaneState(0), 0);
+    lane.removeProperty("gate", nullptr);
+    lane.setProperty("legacyGate", 120, nullptr);
+    juce::ValueTree root("PhuSequential");
+    root.setProperty("formatVersion", 1, nullptr);
+    root.appendChild(lane, nullptr);
+
+    const auto migrated = fromValueTree(root, chain, 2);
+    CHECK(migrated.outcome == LoadOutcome::migrated);
+    CHECK(migrated.data.parameters.lanes[0].gatePercent == 120);
+
+    root.setProperty("formatVersion", state::currentFormatVersion + 1, nullptr);
+    const auto newer = fromValueTree(root);
+    CHECK(newer.outcome == LoadOutcome::rejectedNewerVersion);
+    CHECK(newer.data.parameters == defaultSequencerConfiguration());
+}
+
+TEST_CASE("LaneState: apply writes parameters through the parameter tree and the document", "[M26][REQ-22-2]") {
+    DummyProcessor processor;
+    juce::AudioProcessorValueTreeState apvts(processor, nullptr, "Parameters", createParameterLayout());
+    PatternStore store;
+
+    auto lane = defaultLaneState(2);
+    lane.configuration.transpose = 7;
+    lane.configuration.mute = true;
+    lane.document.color = LaneColor{9, 8, 7};
+    lane.document.pattern.steps.setEnabled(1, false);
+
+    applyLaneState(lane, 2, apvts, store);
+    CHECK(captureLaneState(apvts, store, 2) == lane);
+    CHECK(captureLaneState(apvts, store, 0) == defaultLaneState(0));
+}
+
+TEST_CASE("LaneEditHistory: commands run through APVTS and store, undo/redo and clear", "[M27][REQ-24-3][REQ-24-4]") {
+    DummyProcessor processor;
+    juce::AudioProcessorValueTreeState apvts(processor, nullptr, "Parameters", createParameterLayout());
+    PatternStore store;
+    LaneEditHistory history(apvts, store);
+    const auto before = captureLaneState(apvts, store, 1);
+
+    const phu::arpeggiator::CommandArguments args{{5}, {}};
+    CHECK(history.execute("SetTranspose", 1, args));
+    CHECK_FALSE(history.execute("NoSuchCommand", 1));
+    CHECK(captureLaneState(apvts, store, 1).configuration.transpose == 5);
+    CHECK(history.canUndo());
+
+    history.undo();
+    CHECK(captureLaneState(apvts, store, 1) == before);
+    history.redo();
+    CHECK(captureLaneState(apvts, store, 1).configuration.transpose == 5);
+
+    history.clear();
+    CHECK_FALSE(history.canUndo());
+    CHECK_FALSE(history.canRedo());
+}
+
+TEST_CASE("LaneEditHistory: coalesced edits collapse into one undo step", "[M27][REQ-24-3]") {
+    DummyProcessor processor;
+    juce::AudioProcessorValueTreeState apvts(processor, nullptr, "Parameters", createParameterLayout());
+    PatternStore store;
+    LaneEditHistory history(apvts, store);
+    const auto before = captureLaneState(apvts, store, 0);
+
+    for (int text = 0; text < 3; ++text) {
+        history.executeCoalesced("color", [text](phu::arpeggiator::LaneStateAccess& access) {
+            return std::make_unique<phu::arpeggiator::SetLaneColorCommand>(access, 0, phu::arpeggiator::LaneColor{static_cast<std::uint8_t>(text), 1, 2});
+        });
+    }
+    history.endGesture();
+    CHECK(captureLaneState(apvts, store, 0).document.color == phu::arpeggiator::LaneColor{2, 1, 2});
+    history.undo();
+    CHECK(captureLaneState(apvts, store, 0) == before);
+    CHECK_FALSE(history.canUndo());
 }

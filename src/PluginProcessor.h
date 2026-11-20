@@ -1,6 +1,7 @@
 #pragma once
 
 #include "BlockEngine.h"
+#include "LaneEditHistory.h"
 #include "ParameterReader.h"
 #include "PatternStore.h"
 #include "PresetManager.h"
@@ -47,6 +48,7 @@ public:
     juce::AudioProcessorValueTreeState& parameters() noexcept { return parameters_; }
     phu::plugin::PatternStore& patternStore() noexcept { return patternStore_; }
     phu::plugin::PresetManager& presetManager() noexcept { return presetManager_; }
+    phu::plugin::LaneEditHistory& laneEditHistory() noexcept { return laneEditHistory_; }
 
     // Wait-free playback position for the editor: step index currently sounding in the lane, -1 if not running.
     [[nodiscard]] int currentStepIndex(int laneIndex) const noexcept;
@@ -58,6 +60,7 @@ private:
     juce::AudioProcessorValueTreeState parameters_;
     phu::plugin::ParameterReader parameterReader_;
     phu::plugin::PatternStore patternStore_;
+    phu::plugin::LaneEditHistory laneEditHistory_;
     phu::plugin::PresetManager presetManager_;
     phu::plugin::BlockEngine engine_;
     std::array<std::atomic<int>, phu::sequencing::constants::lanes::laneCount> currentStepIndex_{};

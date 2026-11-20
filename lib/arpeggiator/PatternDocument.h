@@ -27,6 +27,9 @@ struct LaneDocument {
     LanePattern pattern;          // step data + applied (last valid) text grid
     std::string textGridText;     // exactly what the user typed, possibly invalid (sec. 5.3)
     LaneColor color;
+
+    // Compares persisted content only; revision counters are runtime bookkeeping.
+    friend bool operator==(const LaneDocument&, const LaneDocument&) noexcept;
 };
 
 // Message-thread model of all non-parameter state (sec. 12, 13). Pure C++, no JUCE. [MT]

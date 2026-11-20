@@ -4,6 +4,7 @@
 #include "ParameterReader.h"
 #include "arpeggiator/ConfigurationBuilder.h"
 #include "arpeggiator/LaneConfiguration.h"
+#include "arpeggiator/LaneState.h"
 #include "sequencing/NoteValues.h"
 #include "sequencing/StepData.h"
 #include "sequencing/TextGridParser.h"
@@ -196,7 +197,10 @@ arpeggiator::ParameterSnapshot toParameterSnapshot(const arpeggiator::SequencerC
 
 void setParameter(juce::AudioProcessorValueTreeState& apvts, const juce::String& id, int value) {
     if (auto* parameter = apvts.getParameter(id)) {
-        parameter->setValueNotifyingHost(parameter->convertTo0to1(static_cast<float>(value)));
+        const auto normalised = parameter->convertTo0to1(static_cast<float>(value));
+        if (parameter->getValue() != normalised) {  // unchanged values must not notify the host
+            parameter->setValueNotifyingHost(normalised);
+        }
     }
 }
 
@@ -278,6 +282,34 @@ void readSteps(const juce::ValueTree& stepsTree, sequencing::StepPattern& steps,
     }
 }
 
+// Reads one Lane tree; missing or invalid fields fall back to the lane's sec. 20 defaults.
+arpeggiator::LaneState readLane(const juce::ValueTree& lane, int laneIndex, Reader& reader) {
+    auto state = arpeggiator::defaultLaneState(laneIndex);
+    state.configuration = readLaneParameters(lane, reader);
+    auto& document = state.document;
+
+    if (lane.hasProperty("color") && !parseColor(lane.getProperty("color").toString(), document.color)) {
+        reader.clamped = true;
+        document.color = arpeggiator::defaultLaneColor(laneIndex);
+    }
+
+    if (const auto grid = lane.getChildWithName(textGridType); grid.isValid()) {
+        document.textGridText = grid.getProperty("text").toString().toStdString();
+        const auto appliedText = grid.getProperty("applied").toString().toStdString();
+        if (const auto applied = sequencing::parseTextGrid(appliedText); applied.grid) {
+            document.pattern.appliedTextGrid = *applied.grid;
+        } else {
+            document.pattern.appliedTextGrid = {};
+            reader.clamped = reader.clamped || !appliedText.empty();
+        }
+    }
+
+    if (const auto steps = lane.getChildWithName(stepsType); steps.isValid()) {
+        readSteps(steps, document.pattern.steps, reader);
+    }
+    return state;
+}
+
 LoadResult reject(LoadOutcome outcome) {
     return LoadResult{outcome, PluginStateData{}};
 }
@@ -302,35 +334,62 @@ juce::ValueTree toValueTree(const PluginStateData& state, StateKind kind, const 
     root.appendChild(global, nullptr);
 
     for (int i = 0; i < lanes::laneCount; ++i) {
-        const auto& parameters = state.parameters.lanes[static_cast<std::size_t>(i)];
-        const auto& document = state.document.lane(i);
-
-        juce::ValueTree lane(laneType);
-        lane.setProperty("index", i + 1, nullptr);
-        for (int p = 0; p < parameter_ids::laneParameterCount; ++p) {
-            const auto parameter = static_cast<LaneParameter>(p);
-            lane.setProperty(laneKey(parameter), laneAttribute(parameters, parameter), nullptr);
-        }
-        lane.setProperty("color", colorText(document.color), nullptr);
-
-        juce::ValueTree grid(textGridType);
-        grid.setProperty("text", toJuce(document.textGridText), nullptr);
-        grid.setProperty("applied", toJuce(sequencing::formatTextGrid(document.pattern.appliedTextGrid)), nullptr);
-        lane.appendChild(grid, nullptr);
-
-        juce::ValueTree steps(stepsType);
-        steps.setProperty(stepsOnKey, stepsCsv(document.pattern, sequencing::VelocityMode::incoming, true), nullptr);
-        for (std::size_t m = 0; m < sequencing::velocityModeRegistry.size(); ++m) {
-            const auto& definition = sequencing::velocityModeRegistry[m];
-            if (definition.usesStepValues) {
-                steps.setProperty(toJuce(definition.persistenceKey),
-                                  stepsCsv(document.pattern, static_cast<sequencing::VelocityMode>(m), false), nullptr);
-            }
-        }
-        lane.appendChild(steps, nullptr);
-        root.appendChild(lane, nullptr);
+        root.appendChild(laneToValueTree(arpeggiator::LaneState{state.parameters.lanes[static_cast<std::size_t>(i)],
+                                                                state.document.lane(i)},
+                                         i),
+                         nullptr);
     }
     return root;
+}
+
+juce::ValueTree laneToValueTree(const arpeggiator::LaneState& state, int laneIndex) {
+    const int index = std::clamp(laneIndex, 0, lanes::laneCount - 1);
+    const auto& parameters = state.configuration;
+    const auto& document = state.document;
+
+    juce::ValueTree lane(laneType);
+    lane.setProperty("index", index + 1, nullptr);
+    for (int p = 0; p < parameter_ids::laneParameterCount; ++p) {
+        const auto parameter = static_cast<LaneParameter>(p);
+        lane.setProperty(laneKey(parameter), laneAttribute(parameters, parameter), nullptr);
+    }
+    lane.setProperty("color", colorText(document.color), nullptr);
+
+    juce::ValueTree grid(textGridType);
+    grid.setProperty("text", toJuce(document.textGridText), nullptr);
+    grid.setProperty("applied", toJuce(sequencing::formatTextGrid(document.pattern.appliedTextGrid)), nullptr);
+    lane.appendChild(grid, nullptr);
+
+    juce::ValueTree steps(stepsType);
+    steps.setProperty(stepsOnKey, stepsCsv(document.pattern, sequencing::VelocityMode::incoming, true), nullptr);
+    for (std::size_t m = 0; m < sequencing::velocityModeRegistry.size(); ++m) {
+        const auto& definition = sequencing::velocityModeRegistry[m];
+        if (definition.usesStepValues) {
+            steps.setProperty(toJuce(definition.persistenceKey),
+                              stepsCsv(document.pattern, static_cast<sequencing::VelocityMode>(m), false), nullptr);
+        }
+    }
+    lane.appendChild(steps, nullptr);
+    return lane;
+}
+
+LaneStateLoadResult laneFromValueTree(const juce::ValueTree& laneTree, int laneIndex) {
+    const int index = std::clamp(laneIndex, 0, lanes::laneCount - 1);
+    LaneStateLoadResult result;
+    if (!laneTree.isValid() || !laneTree.hasType(laneType)) {
+        result.state = arpeggiator::defaultLaneState(index);
+        result.valid = false;
+        return result;
+    }
+    Reader reader;
+    result.state = readLane(laneTree, index, reader);
+    result.state.configuration = arpeggiator::clampLaneParameters(result.state.configuration);
+    arpeggiator::PatternDocument scratch;
+    scratch.setLane(index, result.state.document);
+    scratch.enforceStepCountInvariant(index, result.state.configuration);
+    result.state.document = scratch.lane(index);
+    result.clamped = reader.clamped;
+    return result;
 }
 
 LoadResult fromValueTree(const juce::ValueTree& input, std::span<const MigrationFunction> chain, int currentVersion) {
@@ -377,31 +436,10 @@ LoadResult fromValueTree(const juce::ValueTree& input, std::span<const Migration
         }
         const int laneIndex = static_cast<int>(index) - 1;
         auto& parameters = data.parameters.lanes[static_cast<std::size_t>(laneIndex)];
-        parameters = readLaneParameters(lane, reader);
+        auto laneState = readLane(lane, laneIndex, reader);
+        parameters = laneState.configuration;
 
-        arpeggiator::LaneDocument document = data.document.lane(laneIndex);
-
-        if (lane.hasProperty("color") && !parseColor(lane.getProperty("color").toString(), document.color)) {
-            reader.clamped = true;
-            document.color = arpeggiator::defaultLaneColor(laneIndex);
-        }
-
-        if (const auto grid = lane.getChildWithName(textGridType); grid.isValid()) {
-            document.textGridText = grid.getProperty("text").toString().toStdString();
-            const auto appliedText = grid.getProperty("applied").toString().toStdString();
-            if (const auto applied = sequencing::parseTextGrid(appliedText); applied.grid) {
-                document.pattern.appliedTextGrid = *applied.grid;
-            } else {
-                document.pattern.appliedTextGrid = {};
-                reader.clamped = reader.clamped || !appliedText.empty();
-            }
-        }
-
-        if (const auto steps = lane.getChildWithName(stepsType); steps.isValid()) {
-            readSteps(steps, document.pattern.steps, reader);
-        }
-
-        data.document.setLane(laneIndex, std::move(document));
+        data.document.setLane(laneIndex, std::move(laneState.document));
         data.document.enforceStepCountInvariant(laneIndex, parameters);
     }
 
@@ -445,6 +483,26 @@ PluginStateData captureState(juce::AudioProcessorValueTreeState& apvts, const Pa
     state.parameters = arpeggiator::buildConfiguration(ParameterReader(apvts).read());
     state.document = store.copyDocument();
     return state;
+}
+
+arpeggiator::LaneState captureLaneState(juce::AudioProcessorValueTreeState& apvts, const PatternStore& store,
+                                        int laneIndex) {
+    const int index = std::clamp(laneIndex, 0, lanes::laneCount - 1);
+    const auto config = arpeggiator::buildConfiguration(ParameterReader(apvts).read());
+    return arpeggiator::LaneState{config.lanes[static_cast<std::size_t>(index)], store.copyDocument().lane(index)};
+}
+
+void applyLaneState(const arpeggiator::LaneState& state, int laneIndex, juce::AudioProcessorValueTreeState& apvts,
+                    PatternStore& store) {
+    const int index = std::clamp(laneIndex, 0, lanes::laneCount - 1);
+    for (int p = 0; p < parameter_ids::laneParameterCount; ++p) {
+        const auto parameter = static_cast<LaneParameter>(p);
+        setParameter(apvts, parameter_ids::laneParameterId(index, parameter), laneValue(state.configuration, parameter));
+    }
+    auto document = store.copyDocument();
+    document.setLane(index, state.document);
+    document.enforceStepCountInvariant(index, state.configuration);
+    store.replaceDocument(std::move(document));
 }
 
 void applyState(const PluginStateData& state, juce::AudioProcessorValueTreeState& apvts, PatternStore& store) {

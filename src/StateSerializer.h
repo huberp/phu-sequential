@@ -1,5 +1,6 @@
 #pragma once
 
+#include "LaneStateSerializer.h"
 #include "PatternStore.h"
 #include "StateMigration.h"
 #include "arpeggiator/PatternDocument.h"
@@ -45,5 +46,10 @@ void writeStateBlock(const PluginStateData&, juce::MemoryBlock&);
 
 [[nodiscard]] PluginStateData captureState(juce::AudioProcessorValueTreeState&, const PatternStore&);
 void applyState(const PluginStateData&, juce::AudioProcessorValueTreeState&, PatternStore&);
+
+// Single-lane counterparts (D-55): parameters are written through APVTS with host notification.
+[[nodiscard]] arpeggiator::LaneState captureLaneState(juce::AudioProcessorValueTreeState&, const PatternStore&,
+                                                      int laneIndex);
+void applyLaneState(const arpeggiator::LaneState&, int laneIndex, juce::AudioProcessorValueTreeState&, PatternStore&);
 
 }  // namespace phu::plugin

@@ -589,7 +589,7 @@ All operations are [RT] (`noexcept`, O(1), no allocation, a single atomic exchan
 
 ---
 
-### 3.13 M25 Command and undo manager — `Command.h`, `UndoManager.h/.cpp` (planned)
+### 3.13 M25 Command and undo manager — `Command.h`, `UndoManager.h/.cpp` (implemented, #42)
 
 Generic, JUCE-free undo/redo infrastructure (§23; reusable, §15). `namespace phu::sequencing`; not to be confused with `juce::UndoManager` (D-56).
 
