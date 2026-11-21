@@ -6,6 +6,7 @@
 #include "arpeggiator/TransportTracker.h"
 #include "sequencing/Constants.h"
 #include "sequencing/OutputEventBuffer.h"
+#include "sequencing/TripleBuffer.h"
 
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <array>
@@ -43,5 +44,15 @@ private:
     std::uint32_t hostOutputGrowthCount_ = 0;
     std::size_t knownHostCapacityBytes_ = 0;  // see note in BlockEngine.cpp
 };
+
+class ParameterReader;
+
+// [RT] One plugin block exactly as PluginProcessor::processInternal runs it (arch step 1 + process()):
+// parameters -> configuration, newly published patterns -> core, then BlockEngine::process. Shared by
+// the processor and the host-trace replay (M28) so both stay identical.
+void processPluginBlock(BlockEngine& engine, const ParameterReader& parameters,
+                        sequencing::TripleBuffer<arpeggiator::PatternSnapshot>& patterns, juce::MidiBuffer& midi,
+                        int numSamples, const arpeggiator::TransportInfo& transport, double sampleRate,
+                        bool bypassed) noexcept;
 
 }  // namespace phu::plugin

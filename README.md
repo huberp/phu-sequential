@@ -46,6 +46,18 @@ cmake --build --preset linux-x64-vst3-release-build --target SequentialCoreTests
 ctest --test-dir build/linux-x64-vst3-release --output-on-failure
 ```
 
+### Host trace (debugging timing issues in a DAW)
+
+Configure with `-DPHU_ENABLE_HOST_TRACE=ON` and rebuild the plugin. Each plugin instance then writes
+`<Documents>/phu-sequential/host-traces/trace-<date>-<time>.txt`. Replay a trace and get a readable report
+(`<trace>.report.txt`) with:
+
+```bash
+PHU_HOST_TRACE_FILE=/path/to/trace.txt ./SequentialAdapterTests "[.host-trace-replay]"
+```
+
+See [docs/architecture/06-juce-adapter.md](docs/architecture/06-juce-adapter.md) §6.8.
+
 ## Linux-Specific Setup
 
 If you're on Linux, first install the required dependencies:

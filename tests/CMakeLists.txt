@@ -63,11 +63,13 @@ endif()
 add_executable(SequentialAdapterTests
     support/AllocationGuard.cpp
     adapter/HostTransportTests.cpp
+    adapter/HostTraceTests.cpp
     adapter/MidiConversionTests.cpp
     adapter/BlockEngineTests.cpp
     adapter/ParameterTests.cpp
     adapter/StateTests.cpp
     ../src/HostTransport.cpp
+    ../src/HostTrace.cpp
     ../src/MidiConversion.cpp
     ../src/BlockEngine.cpp
     ../src/ParameterIds.cpp

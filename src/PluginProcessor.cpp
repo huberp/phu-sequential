@@ -3,7 +3,6 @@
 #include "ParameterLayout.h"
 #include "PluginEditor.h"
 #include "StateSerializer.h"
-#include "arpeggiator/ConfigurationBuilder.h"
 
 PluginProcessor::PluginProcessor() : juce::AudioProcessor(
     juce::AudioProcessor::BusesProperties()
@@ -18,10 +17,20 @@ PluginProcessor::PluginProcessor() : juce::AudioProcessor(
         step.store(-1, std::memory_order_relaxed);
     }
     presetManager_.onStateLoaded = [this] { laneEditHistory_.clear(); };
+#if PHU_HOST_TRACE
+    hostTrace_ = std::make_unique<phu::plugin::HostTraceRecorder>(hostTraceCapacityRecords);
+    hostTraceWriter_ = std::make_unique<phu::plugin::HostTraceFileWriter>(
+        *hostTrace_, phu::plugin::defaultHostTraceFile(),
+        [this](juce::MemoryBlock& state) { getStateInformation(state); });
+    hostTraceWriter_->start(hostTraceFlushIntervalMilliseconds);
+#endif
 }
 
 PluginProcessor::~PluginProcessor()
 {
+#if PHU_HOST_TRACE
+    hostTraceWriter_.reset();
+#endif
 }
 
 const juce::String PluginProcessor::getName() const
@@ -85,12 +94,17 @@ void PluginProcessor::releaseResources()
 void PluginProcessor::processInternal(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi, bool bypassed)
 {
     const auto transport = phu::plugin::readHostTransport(getPlayHead());
-    const auto config = phu::arpeggiator::buildConfiguration(parameterReader_.read());
-    auto& patterns = patternStore_.audioSide();
-    if (patterns.update()) {
-        engine_.core().setPatterns(patterns.read());
-    }
-    engine_.process(midi, buffer.getNumSamples(), transport, sampleRate_, bypassed, config);
+    const int numSamples = buffer.getNumSamples();
+#if PHU_HOST_TRACE
+    hostTrace_->beginBlock(numSamples, sampleRate_, bypassed, transport);
+    hostTrace_->addMidi(phu::plugin::HostTraceRecord::Kind::input, midi);
+#endif
+    phu::plugin::processPluginBlock(engine_, parameterReader_, patternStore_.audioSide(), midi, numSamples, transport,
+                                    sampleRate_, bypassed);
+#if PHU_HOST_TRACE
+    hostTrace_->addMidi(phu::plugin::HostTraceRecord::Kind::output, midi);
+    hostTrace_->endBlock();
+#endif
 
     const auto status = engine_.core().playbackStatus();
     for (std::size_t lane = 0; lane < currentStepIndex_.size(); ++lane) {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "BlockEngine.h"
+#include "HostTrace.h"
 #include "LaneEditHistory.h"
 #include "ParameterReader.h"
 #include "PatternStore.h"
@@ -9,8 +10,14 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
+#ifndef PHU_HOST_TRACE
+#define PHU_HOST_TRACE 0  // set by the CMake option PHU_ENABLE_HOST_TRACE (M28)
+#endif
+
 #include <array>
 #include <atomic>
+#include <cstddef>
+#include <memory>
 
 class PluginProcessor : public juce::AudioProcessor
 {
@@ -67,6 +74,15 @@ private:
     double sampleRate_ = 44100.0;
 
     void processInternal(juce::AudioBuffer<float>&, juce::MidiBuffer&, bool bypassed);
+
+#if PHU_HOST_TRACE
+    // M28 (D-61): debug host trace, only in builds with PHU_ENABLE_HOST_TRACE=ON. Recorder before writer
+    // (the writer drains the recorder in its destructor).
+    static constexpr std::size_t hostTraceCapacityRecords = 1u << 16;
+    static constexpr int hostTraceFlushIntervalMilliseconds = 250;
+    std::unique_ptr<phu::plugin::HostTraceRecorder> hostTrace_;
+    std::unique_ptr<phu::plugin::HostTraceFileWriter> hostTraceWriter_;
+#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };

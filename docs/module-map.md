@@ -35,10 +35,11 @@ This is a compact token-efficient lookup table for agents working on specific mo
 | M25 Command / UndoManager | [03-sequencing-modules.md §3.13](architecture/03-sequencing-modules.md) | `lib/sequencing/Command.h`, `UndoManager.h`, `.cpp` (implemented, #42) | UndoManagerTests | §23 | D-56 | M01 |
 | M26 LaneState | [04-arpeggiator-modules.md §4.10](architecture/04-arpeggiator-modules.md) (+ [06 §6.7](architecture/06-juce-adapter.md)) | `lib/arpeggiator/LaneState.h`, `.cpp`; adapter `src/LaneStateSerializer.h` (impl. in `StateSerializer.cpp`) (implemented, #41) | LaneStateTests; `tests/adapter/StateTests.cpp` | §22 | D-55 | M12, M21, M22 |
 | M27 Lane commands | [04-arpeggiator-modules.md §4.11](architecture/04-arpeggiator-modules.md) (+ [06 §6.7](architecture/06-juce-adapter.md)) | `lib/arpeggiator/LaneCommand.h`, `.cpp` (implemented, #42; incl. `LaneStateAccess`), `LaneCommands.h`, `.cpp`, `LaneCommandRegistry.h`, `.cpp` (implemented, #43); adapter: `src/LaneEditHistory.h`, `.cpp` | LaneCommandTests | §24 | D-55, D-56, D-57 | M25, M26, M05 |
+| M28 Host trace | [06-juce-adapter.md §6.8](architecture/06-juce-adapter.md) | `src/HostTrace.h`, `.cpp`; `processPluginBlock` in `src/BlockEngine.h`, `.cpp`; CMake option `PHU_ENABLE_HOST_TRACE` | `tests/adapter/HostTraceTests.cpp` (incl. hidden `[.host-trace-replay]` tool) | §17 (RT safety of the recorder) | D-61 | M19, M20, M21, M22 |
 
 ## Reading Recipe
 
-1. **Identify your module**: Locate M01..M27 in the leftmost column.
+1. **Identify your module**: Locate M01..M28 in the leftmost column.
 2. **Find the spec sections**: The "Spec §" column cites section numbers. Run `grep -n '^## 3\|^## 4\|^## 5' spec/*.md` to find them.
 3. **Read the architecture section**: The "Architecture section" column gives a reference like "4.3". Run `grep -n '^### 4.3' docs/architecture/04-arpeggiator-modules.md` and view that range.
 4. **Look up key decisions**: Each decision D-NN is cited in the architecture section. Search the module section (e.g., 4.3) for "D-NN" to find the rationale.
@@ -47,6 +48,6 @@ This is a compact token-efficient lookup table for agents working on specific mo
 **Notes:**
 - Rows M18—M24 list files as designed in the architecture; only `src/PluginProcessor.*`, `src/PluginEditor.*` and `lib/arpeggiator/DisplayScale.*` exist today. Verify with `glob` before relying on a path.
 - *Planned* files (TripleBuffer, adapter tests, factory presets) are not yet in the repo; see architecture for their design.
-- Modules are stably numbered M01..M27 per [docs/architecture/01-layers-and-dependencies.md](architecture/01-layers-and-dependencies.md) §1.1 and used by [test-matrix.md](test-matrix.md).
+- Modules are stably numbered M01..M28 per [docs/architecture/01-layers-and-dependencies.md](architecture/01-layers-and-dependencies.md) §1.1 and used by [test-matrix.md](test-matrix.md).
 - All file paths are relative to the repo root; they exist unless marked "planned".
 - Spec citations like "§5.1" refer to top-level sections (## heading); architecture citations like "D-12" refer to rationales within module sections (### heading).

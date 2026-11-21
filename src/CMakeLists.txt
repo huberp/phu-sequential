@@ -19,6 +19,8 @@ set(PHU_PLUGIN_SOURCES
     PluginEditor.h
     HostTransport.cpp
     HostTransport.h
+    HostTrace.cpp
+    HostTrace.h
     MidiConversion.cpp
     MidiConversion.h
     BlockEngine.cpp
@@ -57,6 +59,12 @@ set(PHU_PLUGIN_SOURCES
 target_sources(phu-sequential PRIVATE ${PHU_PLUGIN_SOURCES})
 
 target_include_directories(phu-sequential PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+# M28 (D-61): debug build that writes a host trace to <Documents>/phu-sequential/host-traces/.
+option(PHU_ENABLE_HOST_TRACE "Record host blocks, transport and MIDI to a trace file (debugging only)" OFF)
+if(PHU_ENABLE_HOST_TRACE)
+    target_compile_definitions(phu-sequential PRIVATE PHU_HOST_TRACE=1)
+endif()
 
 target_link_libraries(phu-sequential
     PRIVATE

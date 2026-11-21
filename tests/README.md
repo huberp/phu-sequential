@@ -29,6 +29,8 @@ runner.runChunk(input);
 REQUIRE(runner.allNotesClosed());
 ```
 
+**Host-trace replay** (`adapter/HostTraceTests.cpp`, M28): hidden test `[.host-trace-replay]` replays a DAW trace given in env `PHU_HOST_TRACE_FILE` and writes `<trace>.report.txt` (see root `README.md`).
+
 ## Adding a test file
 
 1. Create `tests/core/<ModuleName>Tests.cpp`

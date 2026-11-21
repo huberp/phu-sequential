@@ -1,6 +1,8 @@
 #include "BlockEngine.h"
 #include "HostTransport.h"
+#include "ParameterReader.h"
 #include "arpeggiator/BlockTypes.h"
+#include "arpeggiator/ConfigurationBuilder.h"
 #include "sequencing/OutputEventBuffer.h"
 #include "sequencing/SampleConversion.h"
 
@@ -121,6 +123,17 @@ std::uint32_t BlockEngine::hostOutputGrowthCount() const noexcept {
 
 arpeggiator::SequencerCore& BlockEngine::core() noexcept {
     return core_;
+}
+
+void processPluginBlock(BlockEngine& engine, const ParameterReader& parameters,
+                        sequencing::TripleBuffer<arpeggiator::PatternSnapshot>& patterns, juce::MidiBuffer& midi,
+                        int numSamples, const arpeggiator::TransportInfo& transport, double sampleRate,
+                        bool bypassed) noexcept {
+    const auto config = arpeggiator::buildConfiguration(parameters.read());
+    if (patterns.update()) {
+        engine.core().setPatterns(patterns.read());
+    }
+    engine.process(midi, numSamples, transport, sampleRate, bypassed, config);
 }
 
 }  // namespace phu::plugin

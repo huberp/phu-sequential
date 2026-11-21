@@ -7,6 +7,8 @@
 | File | Purpose | Status |
 |------|---------|--------|
 | `PluginProcessor.h/.cpp` | JUCE `AudioProcessor` subclass: host transport, MIDI I/O, state serialization, editor creation. | **Core only** (#12 stub) |
+| `BlockEngine.h/.cpp` | Host transport → core calls (start/stop reset, loop-wrap chunking D-59); `processPluginBlock` = one full plugin block. | Implemented |
+| `HostTrace.h/.cpp` | M28 opt-in host trace recorder/writer/parser (`-DPHU_ENABLE_HOST_TRACE=ON`, D-61). | Implemented |
 | `PluginEditor.h/.cpp`, `editor/*` | M23 editor (#15): global bar, 8 lane rows, control strips, step display, text grid, color picker; all geometry in `editor/EditorLayout.h`. | Implemented |
 
 ## What is planned

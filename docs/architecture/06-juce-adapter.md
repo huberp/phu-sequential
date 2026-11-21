@@ -4,6 +4,8 @@
 
 ### 6.1 M19 Processor, MIDI conversion, host transport — (#12)
 
+> `processInternal` runs one block via `processPluginBlock` (§6.8), shared with the host-trace replay.
+
 > **Implementation note (#12):** the audio-thread block logic (steps 0, 2-5) lives in `BlockEngine` (`src/BlockEngine.h/.cpp`, owns `core_`, `coreOutput_`, `inputChunk_`, `outputScratch_`, `outputOpen_`, `deferredInput_`) and `PluginProcessor` delegates to it with a temporary default configuration (§20) until M21 exists (M20 is implemented: `PluginProcessor` builds the configuration per block from `ParameterReader` via `buildConfiguration`, and `getBypassParameter()` returns the `bypass` parameter). Step 1 (state/params), TripleBuffers and playback status are not yet implemented. JUCE exposes no public `MidiBuffer::data.getNumAllocated()`, so `OutputMidiWriter` tracks the byte budget logically against `outputMidiReserveBytes`.
 
 ```cpp
@@ -423,3 +425,17 @@ Embedded via the conditional `SequentialFactoryPresets` binary-data target of §
 ### 6.7 M26/M27 adapter part — `LaneStateSerializer`, `LaneEditHistory` (implemented, #41/#43)
 
 `laneToValueTree(LaneState, laneIndex)` / `laneFromValueTree(tree, laneIndex)` (`src/LaneStateSerializer.h`, §22.2; implemented in `StateSerializer.cpp`, which owns the shared field readers) plus `captureLaneState`/`applyLaneState` (APVTS with host notification, D-55) are free functions in `phu::plugin` reusing the M22 per-lane serialization (one child per lane, same format version/migration as state and presets). The processor owns one `LaneEditHistory` (`src/LaneEditHistory.h`): a `LaneStateAccess` over `PatternStore` + APVTS that also owns the `sequencing::UndoManager` and the `LaneCommandRegistry`, with coalescing for drags/typing/colour selection (`executeCoalesced` + `endGesture`). Editor edits of pattern data (step on/velocity, text grid, lane colour) go through `LaneCommand`s on the message thread (D-55); Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z / Ctrl+Y and the Undo/Redo buttons in the global bar (enabled via `canUndo()`/`canRedo()`) undo/redo. Parameter widgets (mute, latch, sliders, combos) still use APVTS attachments and are not recorded in the history (deviation from §24.7, host automation is not recorded either, A-47). After `setStateInformation`/preset load the undo history is cleared (A-47).
+
+---
+
+### 6.8 M28 Host trace — `HostTrace.h/.cpp`, `processPluginBlock` (debugging aid, D-61)
+
+Purpose: record what a real host feeds the plugin (block size, sample rate, transport incl. loop points, input MIDI) together with the produced output, and replay it offline in a test, so host-specific timing bugs (start/stop, loop wrap D-59, rounding D-60) can be reproduced deterministically.
+
+- **Block step**: `processPluginBlock(BlockEngine&, const ParameterReader&, TripleBuffer<PatternSnapshot>&, MidiBuffer&, numSamples, transport, sampleRate, bypassed)` (`src/BlockEngine.h`) is the single per-block entry used by `PluginProcessor::processInternal` *and* by the replay: parameters → `buildConfiguration` → pattern snapshot → `BlockEngine::process`. Replay therefore exercises the same code path as the plugin.
+- **Recorder** (`HostTraceRecorder`, RT side): fixed-capacity SPSC ring of `HostTraceRecord`s; `beginBlock` / `addMidi` / `endBlock` never allocate or lock. A block is published only in `endBlock`; if it does not fit it is dropped as a whole and counted (`droppedBlocks()`).
+- **Writer** (`HostTraceFileWriter`, message thread, `juce::Timer`): drains every 250 ms and appends to a text file; it writes an `S` line (base64 plugin state from `getStateInformation`) before the drained records whenever the state changed. Default file: `<Documents>/phu-sequential/host-traces/trace-YYYYMMDD-HHMMSS.txt`.
+- **Format v1** (line based, `classic` locale, doubles at `max_digits10`): `B numSamples sampleRate bypassed isPlaying hasPpq ppq bpm isLooping loopStart loopEnd`, then `I offset hex` (host input) and `O offset hex` (plugin output) of that block; `S base64`; `#` comments (incl. `# dropped blocks n`). `parseHostTrace` returns blocks plus the first malformed line.
+- **Build switch**: CMake option `PHU_ENABLE_HOST_TRACE` (default `OFF`) defines `PHU_HOST_TRACE=1` for the plugin target only; release builds contain no recorder.
+- **Replay tool**: hidden Catch2 test `[.host-trace-replay]` in `SequentialAdapterTests` reads `PHU_HOST_TRACE_FILE`, replays all blocks, compares output to the recorded output and writes `<file>.report.txt` (transport changes/jumps, every event with bar/beat, 1/16 grid deviation of note-ons in samples, note lengths with `SHORT` marker, `MISMATCH` lines).
+- **Limitation**: state is captured per flush, so parameter edits/automation between two flushes are attributed to the next flush (replay may then mismatch around that point).

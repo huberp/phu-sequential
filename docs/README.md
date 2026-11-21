@@ -18,7 +18,7 @@ Use `docs/module-map.md` for token-efficient module lookup.
 | §3 | [Sequencing Modules](architecture/03-sequencing-modules.md) | M01-M11, M18, M25 (lib/sequencing) | ~36 KB |
 | §4 | [Arpeggiator Modules](architecture/04-arpeggiator-modules.md) | M12-M17, M26-M27 (lib/arpeggiator) | ~33 KB |
 | §5 | [Per-Block Flow](architecture/05-per-block-flow.md) | SequencerCore::processBlock flow | ~10.6 KB |
-| §6 | [JUCE Adapter](architecture/06-juce-adapter.md) | M19-M24, adapter part of M26-M27 (src/) | ~39 KB |
+| §6 | [JUCE Adapter](architecture/06-juce-adapter.md) | M19-M24, adapter part of M26-M27, M28 (src/) | ~39 KB |
 
 ### Cross-Cutting Concerns
 
