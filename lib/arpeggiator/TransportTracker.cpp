@@ -16,6 +16,9 @@ TransportUpdate TransportTracker::update(const TransportInfo& info, double sampl
     bool isPlaying = info.isPlaying && info.hasMusicalPosition && info.tempoBeatsPerMinute > 0;
     
     if (!isPlaying) {
+        // Forget history so the next playing block reports `started` and re-anchors the lanes'
+        // phase offset at the new playhead (sec. 10: transport start maps the playhead to step 1).
+        hasHistory_ = false;
         if (wasPlaying_) {
             wasPlaying_ = false;
             return TransportUpdate{TransportTransition::stopped, {}};

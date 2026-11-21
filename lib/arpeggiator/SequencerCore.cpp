@@ -239,6 +239,7 @@ BlockResult SequencerCore::processBlock(const BlockInput& input, const Sequencer
         }
 
         bool processInputFirst = false;
+        bool snapToLaneStep = false;
         if (hasInputEvent) {
             if (!timelineItemExists) {
                 processInputFirst = true;
@@ -247,11 +248,19 @@ BlockResult SequencerCore::processBlock(const BlockInput& input, const Sequencer
             } else if (eventOffset == sItem && !timelineIsVoiceEnd) {
                 // D-14.4: input event first when the timeline item is a lane event.
                 processInputFirst = true;
+            } else if (!timelineIsVoiceEnd &&
+                       eventOffset - sItem <= sequencing::constants::timing::lateInputToleranceSamples) {
+                // D-58: slightly late input still belongs to the lane step at sItem.
+                processInputFirst = true;
+                snapToLaneStep = true;
             }
         }
 
         if (processInputFirst) {
-            const MidiEvent& rawEvent = input.events[eventIndex];
+            MidiEvent rawEvent = input.events[eventIndex];
+            if (snapToLaneStep) {
+                rawEvent.sampleOffset = sItem;
+            }
             const MidiEvent normalized = normalizeNoteEvent(rawEvent);
             const bool changed = heldNotes_.apply(normalized);
             passThrough_.process(normalized, policy, voices_, output);
@@ -261,6 +270,15 @@ BlockResult SequencerCore::processBlock(const BlockInput& input, const Sequencer
                 }
             }
             ++eventIndex;
+            // D-58: re-evaluate a just-started step once the whole same-offset input group is applied.
+            const bool groupEnds = eventIndex < input.events.size()
+                ? input.events[eventIndex].sampleOffset != input.events[eventIndex - 1].sampleOffset
+                : !input.moreInputAtSameOffset;
+            if (groupEnds && transportPlaying_) {
+                for (auto& lane : lanes_) {
+                    lane.applyPendingRetrigger(rawEvent.sampleOffset, ctx);
+                }
+            }
         } else if (timelineIsVoiceEnd) {
             voices_.endVoice(voiceEnd->voice, sItem, output);
         } else {

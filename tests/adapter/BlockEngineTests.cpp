@@ -425,3 +425,72 @@ TEST_CASE("BlockEngine: raw events preserved in output", "[BlockEngine]") {
     // Raw events should appear in output even when transport not playing
 }
 
+
+// --- BlockEngine: host loop wrap inside a block (D-59) ---------------------------------------
+
+TEST_CASE("BlockEngine: host loop wrap inside a block restarts the lane without cutting step 1 (D-59)", "[BlockEngine][D-59]") {
+    BlockEngine engine;
+    engine.prepare();
+    auto config = defaultSequencerConfiguration();
+    for (int i = 1; i < constants::lanes::laneCount; ++i) {
+        config.lanes[i].mute = true;
+    }
+    config.lanes[0].baseTimingIndex = 2;  // 1/8 = 12000 samples
+    config.lanes[0].gatePercent = 100;
+    constexpr int blockSize = 4096;
+    constexpr std::int64_t loopEndSample = 16 * 24000;  // 4-bar host loop [0, 16)
+    constexpr std::int64_t eighth = 12000;
+
+    struct Out { std::int64_t sample; bool on; int pitch; };
+    std::vector<Out> out;
+    std::int64_t timelineSample = 0;  // host timeline before the wrap, continues linearly
+    bool first = true;
+    for (int block = 0; block < 100; ++block) {
+        const std::int64_t blockStart = timelineSample;
+        const double ppq = static_cast<double>(blockStart >= loopEndSample ? blockStart - loopEndSample : blockStart) / 24000.0;
+        auto info = transportAt(ppq);
+        info.isLooping = true;
+        info.loopStartBeat = 0.0;
+        info.loopEndBeat = 16.0;
+
+        juce::MidiBuffer midi;
+        if (first) {
+            midi.addEvent(juce::MidiMessage::noteOn(1, 38, static_cast<juce::uint8>(90)), 0);
+            first = false;
+        }
+        const std::int64_t wrapInBlock = loopEndSample - blockStart;
+        if (wrapInBlock > 0 && wrapInBlock < blockSize) {
+            // The host's looping clip retriggers its note at the wrap.
+            midi.addEvent(juce::MidiMessage::noteOff(1, 38), static_cast<int>(wrapInBlock));
+            midi.addEvent(juce::MidiMessage::noteOn(1, 38, static_cast<juce::uint8>(90)), static_cast<int>(wrapInBlock));
+        }
+        engine.process(midi, blockSize, info, sampleRate, false, config);
+        for (const auto metadata : midi) {
+            const auto message = metadata.getMessage();
+            if (message.isNoteOnOrOff()) {
+                out.push_back({blockStart + metadata.samplePosition, message.isNoteOn(), message.getNoteNumber()});
+            }
+        }
+        timelineSample += blockSize;
+    }
+    REQUIRE(loopEndSample % blockSize != 0);  // the wrap really falls inside a block
+
+    std::vector<Out> afterWrap;
+    for (const auto& event : out) {
+        if (event.sample >= loopEndSample && event.sample <= loopEndSample + eighth) {
+            afterWrap.push_back(event);
+        }
+    }
+    // Step 16 ends at the wrap; step 1 of the new loop sounds for its full 1/8: On at the wrap,
+    // the next Off only at the next step.
+    std::string log;
+    for (const auto& event : afterWrap) {
+        log += std::to_string(event.sample - loopEndSample) + (event.on ? " ON " : " OFF ") + std::to_string(event.pitch) + "\n";
+    }
+    INFO(log);
+    REQUIRE(afterWrap.size() == 4);
+    CHECK((!afterWrap[0].on && afterWrap[0].sample == loopEndSample));
+    CHECK((afterWrap[1].on && afterWrap[1].sample == loopEndSample && afterWrap[1].pitch == 38));
+    CHECK((!afterWrap[2].on && afterWrap[2].sample == loopEndSample + eighth));
+    CHECK((afterWrap[3].on && afterWrap[3].sample == loopEndSample + eighth));
+}

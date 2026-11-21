@@ -25,6 +25,12 @@ namespace phu::plugin {
     if (auto tempo = positionInfo.getBpm()) {
         info.tempoBeatsPerMinute = *tempo;
     }
+
+    if (auto loop = positionInfo.getLoopPoints(); loop && positionInfo.getIsLooping()) {
+        info.isLooping = true;
+        info.loopStartBeat = loop->ppqStart;
+        info.loopEndBeat = loop->ppqEnd;
+    }
     
     return info;
 }

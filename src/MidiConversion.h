@@ -75,7 +75,7 @@ private:
 class ChunkedInputReader {
 public:
     ChunkedInputReader(const DeferredInputStore& deferred, const juce::MidiBuffer& hostInput,
-                       int numSamples) noexcept;                                    // [RT]
+                       int numSamples, int forcedCutSample = -1) noexcept;           // [RT]
 
     struct ChunkDescriptor {
         int startSample = 0;
@@ -94,6 +94,7 @@ private:
     const DeferredInputStore* deferred_;
     const juce::MidiBuffer* hostInput_;
     int numSamples_;
+    int forcedCutSample_;
     int position_ = 0;
 
     std::size_t deferredTotalCore_ = 0;

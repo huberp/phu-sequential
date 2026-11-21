@@ -438,3 +438,37 @@ TEST_CASE("LaneEditHistory: coalesced edits collapse into one undo step", "[M27]
     CHECK(captureLaneState(apvts, store, 0) == before);
     CHECK_FALSE(history.canUndo());
 }
+
+TEST_CASE("PatternStore: every edit and load is published to the audio side with a rising revision",
+          "[M21][REQ-12]") {
+    PatternStore store;
+    auto& audio = store.audioSide();
+    REQUIRE(audio.update());  // initial document published on construction
+    auto lastRevision = audio.read().documentRevision;
+
+    store.setStepEnabled(0, 1, false);
+    store.setStepValue(0, 3, VelocityMode::byStep, 40);
+    REQUIRE(audio.update());
+    CHECK_FALSE(audio.read().lanes[0].steps.step(1).enabled);
+    CHECK(audio.read().lanes[0].steps.step(3).valueByMode[static_cast<std::size_t>(VelocityMode::byStep)] == 40);
+    CHECK(audio.read().documentRevision > lastRevision);
+    lastRevision = audio.read().documentRevision;
+    CHECK_FALSE(audio.update());
+
+    // A loaded document carries its own, lower revision counter; the published one must still rise,
+    // otherwise SequencerCore::setPatterns would ignore it as stale.
+    for (int i = 0; i < 50; ++i) {
+        store.setStepEnabled(1, 0, (i % 2) == 0);
+    }
+    REQUIRE(audio.update());
+    lastRevision = audio.read().documentRevision;
+    PatternDocument loaded;
+    loaded.setStepEnabled(2, 5, false);
+    REQUIRE(loaded.revision() < lastRevision);
+    store.replaceDocument(loaded);
+    REQUIRE(audio.update());
+    CHECK(audio.read().documentRevision > lastRevision);
+    CHECK_FALSE(audio.read().lanes[2].steps.step(5).enabled);
+    CHECK(audio.read().lanes[0].steps.step(1).enabled);
+    CHECK(store.copyDocument() == loaded);
+}

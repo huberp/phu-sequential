@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 #include "arpeggiator/SequencerCore.h"
 #include "arpeggiator/BlockTypes.h"
 #include "arpeggiator/SequencerConfiguration.h"
@@ -452,3 +453,210 @@ TEST_CASE("SequencerCore: processBlock performs no heap allocation (REQ-17-1)", 
         CHECK(guard.allocationCount() == 0);
     }
 }
+
+// --- Regression: step pattern + transport restart (user report: 1/8 lane, By Step, gate 84%) ---
+
+namespace {
+
+constexpr std::int64_t eighthSamples = 12000;  // 1/8 note at 120 BPM / 48 kHz
+
+// Lane 0 as in the report: 1/8 straight, 16 steps, gate 84 %, By Step velocity.
+SequencerConfiguration makeEighthByStepConfig() {
+    SequencerConfiguration config = makeSingleLaneConfig();
+    auto& lane = config.lanes[0];
+    lane.baseTimingIndex = 2;  // 1/8
+    lane.stepCount = 16;
+    lane.gatePercent = 84;
+    lane.velocityMode = VelocityMode::byStep;
+    return config;
+}
+
+std::vector<CapturedEvent> noteOns(const ScenarioRunner& runner) {
+    std::vector<CapturedEvent> result;
+    for (const auto& event : runner.captured()) {
+        if (event.kind == MidiEventKind::noteOn) {
+            result.push_back(event);
+        }
+    }
+    return result;
+}
+
+void runPlaying(ScenarioRunner& runner, double startBeat, std::int64_t samples,
+                std::span<const MidiEvent> firstEvents = {}) {
+    const auto startCursor = runner.sampleCursor();
+    bool first = true;
+    while (runner.sampleCursor() - startCursor < samples) {
+        const double beat = startBeat + static_cast<double>(runner.sampleCursor() - startCursor) / samplesPerBeatConst;
+        runner.runChunk(makeInput(first ? firstEvents : std::span<const MidiEvent>{}, transportAt(beat), 4096));
+        first = false;
+    }
+}
+
+}  // namespace
+
+TEST_CASE("SequencerCore: adopted step pattern drives step on/off and By Step velocity", "[SequencerCore][REQ-6][REQ-7]") {
+    ScenarioRunner runner(makeEighthByStepConfig());
+
+    struct Step { int index; int velocity; };
+    const std::array<Step, 8> enabledSteps{{{0, 110}, {3, 40}, {4, 30}, {7, 30}, {9, 90}, {11, 95}, {13, 100}, {14, 127}}};
+    PatternSnapshot snapshot;
+    snapshot.documentRevision = 5;
+    auto& steps = snapshot.lanes[0].steps;
+    for (int i = 0; i < 16; ++i) {
+        steps.setEnabled(i, false);
+    }
+    for (const auto& step : enabledSteps) {
+        steps.setEnabled(step.index, true);
+        steps.setValue(step.index, VelocityMode::byStep, step.velocity);
+    }
+    runner.core().setPatterns(snapshot);
+
+    // Three-note chord, lane follows index 0 (lowest note).
+    const std::vector<MidiEvent> chord{makeNoteOn(0, 1, 50, 64), makeNoteOn(0, 1, 54, 64), makeNoteOn(0, 1, 57, 64)};
+    runPlaying(runner, 0.0, 16 * eighthSamples - 4096, chord);  // stop before the loop wraps
+
+    const auto ons = noteOns(runner);
+    REQUIRE(ons.size() == enabledSteps.size());
+    for (std::size_t i = 0; i < enabledSteps.size(); ++i) {
+        CHECK(ons[i].absoluteSample == enabledSteps[i].index * eighthSamples);
+        CHECK(ons[i].pitch == 50);
+        CHECK(ons[i].velocity == enabledSteps[i].velocity);
+    }
+}
+
+TEST_CASE("SequencerCore: every transport start re-anchors the lanes at step 1 (REQ-10-1)", "[SequencerCore][REQ-10-1]") {
+    ScenarioRunner runner(makeEighthByStepConfig());
+    const std::vector<MidiEvent> chord{makeNoteOn(0, 1, 50, 64)};
+
+    // First start somewhere off the 1/8 raster.
+    runPlaying(runner, 0.3, 3 * eighthSamples, chord);
+    for (int cycle = 0; cycle < 3; ++cycle) {
+        runner.runChunk(makeInput({}, transportStopped(), 4096));
+        const auto restartSample = runner.sampleCursor();
+        const auto onsBefore = noteOns(runner).size();
+        runPlaying(runner, 0.0, 2 * eighthSamples + eighthSamples / 2);
+
+        const auto ons = noteOns(runner);
+        REQUIRE(ons.size() >= onsBefore + 3);
+        INFO("restart cycle " << cycle);
+        CHECK(ons[onsBefore].absoluteSample == restartSample);
+        CHECK(ons[onsBefore + 1].absoluteSample == restartSample + eighthSamples);
+        CHECK(ons[onsBefore + 2].absoluteSample == restartSample + 2 * eighthSamples);
+        CHECK(runner.core().playbackStatus().lanes[0].currentStepIndex == 2);
+    }
+}
+
+
+// --- Regression: chord change slightly after a step start (user report: ABAB chords, D2 at 3.1 missing) ---
+
+namespace {
+
+constexpr int chordD2 = 38;
+constexpr int chordF2 = 41;
+constexpr std::int64_t bar3Sample = 192000;  // beat 8.0, step 0 of the second loop
+
+struct LateChordChangeResult {
+    std::vector<CapturedEvent> events;  // captured at or after bar3Sample - eighthSamples
+};
+
+// Lane: 1/8, 16 steps, gate 100 %, only step 0 enabled. Chord B (lowest F2) is held, then at bar 3
+// it is replaced by chord A (lowest D2) `lateBySamples` after the step. With `stepEndsBlock` the
+// step falls on the last sample of a block and the change arrives in the next block.
+LateChordChangeResult runLateChordChange(int lateBySamples, bool stepEndsBlock) {
+    auto config = makeEighthByStepConfig();
+    config.lanes[0].gatePercent = 100;
+    ScenarioRunner runner(config);
+    PatternSnapshot snapshot;
+    snapshot.documentRevision = 5;
+    for (int i = 0; i < 16; ++i) {
+        snapshot.lanes[0].steps.setEnabled(i, i == 0);
+    }
+    runner.core().setPatterns(snapshot);
+
+    const std::vector<MidiEvent> chordB{makeNoteOn(0, 1, chordF2, 90), makeNoteOn(0, 1, 46, 90), makeNoteOn(0, 1, 48, 90)};
+    runPlaying(runner, 0.0, bar3Sample - 4096, chordB);  // next 4096-sample block contains bar 3
+
+    const auto changeAt = [](SampleOffset offset) {
+        return std::vector<MidiEvent>{makeNoteOff(offset, 1, chordF2), makeNoteOff(offset, 1, 46), makeNoteOff(offset, 1, 48),
+                                      makeNoteOn(offset, 1, chordD2, 90), makeNoteOn(offset, 1, chordF2, 90), makeNoteOn(offset, 1, 45, 90)};
+    };
+    const auto beatAtCursor = [&runner] { return static_cast<double>(runner.sampleCursor()) / samplesPerBeatConst; };
+
+    if (stepEndsBlock) {
+        const auto toStep = static_cast<int>(bar3Sample - runner.sampleCursor() + 1);
+        runner.runChunk(makeInput({}, transportAt(beatAtCursor()), toStep));
+        runner.runChunk(makeInput(changeAt(lateBySamples - 1), transportAt(beatAtCursor()), 4096));
+    } else {
+        const auto stepOffset = static_cast<SampleOffset>(bar3Sample - runner.sampleCursor());
+        runner.runChunk(makeInput(changeAt(stepOffset + lateBySamples), transportAt(beatAtCursor()), 4096));
+    }
+    while (runner.sampleCursor() < bar3Sample + 2 * eighthSamples) {
+        runner.runChunk(makeInput({}, transportAt(beatAtCursor()), 4096));
+    }
+
+    LateChordChangeResult result;
+    for (const auto& event : runner.captured()) {
+        if (event.absoluteSample >= bar3Sample - eighthSamples) {
+            result.events.push_back(event);
+        }
+    }
+    return result;
+}
+
+}  // namespace
+
+TEST_CASE("SequencerCore: chord change up to the late-input tolerance after a step plays the new chord (D-58)",
+          "[SequencerCore][REQ-4][D-58]") {
+    const int lateBy = GENERATE(1, constants::timing::lateInputToleranceSamples);
+    const auto result = runLateChordChange(lateBy, false);
+    INFO("late by " << lateBy << " samples");
+
+    std::vector<CapturedEvent> ons;
+    for (const auto& event : result.events) {
+        if (event.kind == MidiEventKind::noteOn) {
+            ons.push_back(event);
+        }
+    }
+    REQUIRE(ons.size() == 1);
+    CHECK(ons[0].pitch == chordD2);
+    CHECK(ons[0].absoluteSample == bar3Sample);
+}
+
+TEST_CASE("SequencerCore: chord change in the block after a step retriggers that step (D-58)", "[SequencerCore][REQ-4][D-58]") {
+    const int lateBy = GENERATE(1, constants::timing::lateInputToleranceSamples);
+    const auto result = runLateChordChange(lateBy, true);
+    INFO("late by " << lateBy << " samples");
+
+    // Old source F2 starts at the step, the late chord change replaces it by D2 for the rest of the step.
+    std::vector<CapturedEvent> lane;
+    for (const auto& event : result.events) {
+        if (event.kind == MidiEventKind::noteOn || event.kind == MidiEventKind::noteOff) {
+            lane.push_back(event);
+        }
+    }
+    REQUIRE(lane.size() >= 4);
+    CHECK(lane[0].kind == MidiEventKind::noteOn);
+    CHECK(lane[0].pitch == chordF2);
+    CHECK(lane[0].absoluteSample == bar3Sample);
+    CHECK(lane[1].kind == MidiEventKind::noteOff);
+    CHECK(lane[1].pitch == chordF2);
+    CHECK(lane[1].absoluteSample == bar3Sample + lateBy);
+    CHECK(lane[2].kind == MidiEventKind::noteOn);
+    CHECK(lane[2].pitch == chordD2);
+    CHECK(lane[2].absoluteSample == bar3Sample + lateBy);
+    CHECK(lane[3].kind == MidiEventKind::noteOff);
+    CHECK(lane[3].pitch == chordD2);
+    CHECK(lane[3].absoluteSample == bar3Sample + eighthSamples);  // scheduled end of the step kept
+}
+
+TEST_CASE("SequencerCore: chord change later than the tolerance waits for the next step (sec. 4.4)", "[SequencerCore][REQ-4][D-58]") {
+    const auto result = runLateChordChange(constants::timing::lateInputToleranceSamples + 1, false);
+    REQUIRE_FALSE(result.events.empty());
+    CHECK(result.events.front().kind == MidiEventKind::noteOn);
+    CHECK(result.events.front().pitch == chordF2);
+    CHECK(result.events.front().absoluteSample == bar3Sample);
+    for (const auto& event : result.events) {
+        CHECK_FALSE((event.kind == MidiEventKind::noteOn && event.pitch == chordD2));
+    }
+}
+

@@ -51,6 +51,9 @@ public:
         LaneContext& context) noexcept;
 
     void onHeldNotesChanged(sequencing::SampleOffset offset, LaneContext& context) noexcept;
+    // D-58: after a complete same-offset input group, re-evaluates the step that started at most
+    // lateInputToleranceSamples earlier if that group changed or started the lane's source.
+    void applyPendingRetrigger(sequencing::SampleOffset offset, LaneContext& context) noexcept;
 
     [[nodiscard]] sequencing::Beats nextTimelineBeat() const noexcept;
     void processNextTimelineEvent(LaneContext& context) noexcept;
@@ -68,7 +71,9 @@ private:
     void commitPendingLayoutWithoutReanchor() noexcept;
     void recordDiscardIfDecrease(const sequencing::GridLayout& oldLayout,
                                   const sequencing::GridLayout& newLayout) noexcept;
-    void triggerStep(int stepIndex, sequencing::Beats triggerBeat, LaneContext& context) noexcept;
+    void triggerStep(int stepIndex, sequencing::Beats triggerBeat, LaneContext& context,
+                     std::optional<sequencing::SampleOffset> startOffset = std::nullopt) noexcept;
+    [[nodiscard]] bool stepWouldPlay(int stepIndex) const noexcept;
     void scheduleNextStepStart(int stepIndex, std::int64_t loopIndex) noexcept;
 
 
@@ -93,6 +98,10 @@ private:
     };
     NextStepStart nextStepStart_{};
     int currentStepIndex_ = -1;
+    // D-58: start beat of currentStepIndex_ (valid while hasLastStepStart_) and pending retrigger flag.
+    sequencing::Beats lastStepStartBeat_ = 0;
+    bool hasLastStepStart_ = false;
+    bool retriggerPending_ = false;
     std::optional<sequencing::SourceNote> lastObservedSource_;
     std::optional<sequencing::SourceNote> latchMemory_;
 };

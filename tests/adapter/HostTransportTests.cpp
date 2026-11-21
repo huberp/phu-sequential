@@ -170,3 +170,20 @@ TEST_CASE("HostTransport: fractional PPQ values", "[HostTransport]") {
     CHECK(info.playheadBeat == 0.123456);
 }
 
+
+TEST_CASE("HostTransport: loop points are read only while the host loops (D-59)", "[HostTransport][D-59]") {
+    FakePlayHead playhead;
+    auto& pos = playhead.currentPosition;
+    pos.setIsPlaying(true);
+    pos.setPpqPosition(3.0);
+    pos.setLoopPoints(juce::AudioPlayHead::LoopPoints{4.0, 20.0});
+
+    pos.setIsLooping(false);
+    CHECK_FALSE(readHostTransport(&playhead).isLooping);
+
+    pos.setIsLooping(true);
+    const auto info = readHostTransport(&playhead);
+    CHECK(info.isLooping);
+    CHECK(info.loopStartBeat == 4.0);
+    CHECK(info.loopEndBeat == 20.0);
+}

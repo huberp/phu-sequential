@@ -36,6 +36,7 @@ target_sources(SequentialCoreLib PRIVATE
     sequencing/StepData.cpp
     sequencing/VoiceRegistry.h
     sequencing/VoiceRegistry.cpp
+    sequencing/TripleBuffer.h
     sequencing/Command.h
     sequencing/UndoManager.h
     sequencing/UndoManager.cpp

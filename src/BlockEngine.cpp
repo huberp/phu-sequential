@@ -2,6 +2,7 @@
 #include "HostTransport.h"
 #include "arpeggiator/BlockTypes.h"
 #include "sequencing/OutputEventBuffer.h"
+#include "sequencing/SampleConversion.h"
 
 #include <algorithm>
 #include <array>
@@ -54,11 +55,16 @@ void BlockEngine::process(juce::MidiBuffer& midi, int numSamples, const arpeggia
     }
 
     // Pass 2 (chunks, D-51): deliver only core-routed events (note, CC64) to the core.
-    ChunkedInputReader reader(deferredInput_, midi, numSamples);
-
     const double samplesPerBeat = (transportInfo.hasMusicalPosition && transportInfo.tempoBeatsPerMinute > 0.0)
                                       ? sampleRate * 60.0 / transportInfo.tempoBeatsPerMinute
                                       : 0.0;
+    // D-59: a looping host may jump back to the loop start inside this block; cut a chunk there so
+    // the core sees the jump at the exact sample instead of at the next host block.
+    const int wrapSample = (transportInfo.isPlaying && transportInfo.isLooping && samplesPerBeat > 0.0)
+        ? sequencing::loopWrapSampleOffset(transportInfo.playheadBeat, transportInfo.loopStartBeat,
+                                           transportInfo.loopEndBeat, samplesPerBeat, numSamples)
+        : -1;
+    ChunkedInputReader reader(deferredInput_, midi, numSamples, wrapSample);
 
     ChunkedInputReader::ChunkDescriptor descriptor{};
     while (reader.next(std::span<sequencing::MidiEvent, capacity::inputEventsPerChunk>(inputChunk_), descriptor)) {
@@ -67,7 +73,12 @@ void BlockEngine::process(juce::MidiBuffer& midi, int numSamples, const arpeggia
                                                                static_cast<std::size_t>(descriptor.eventCount));
         input.transport = transportInfo;
         if (transportInfo.hasMusicalPosition && samplesPerBeat > 0.0) {
-            input.transport.playheadBeat += static_cast<double>(descriptor.startSample) / samplesPerBeat;
+            if (wrapSample >= 0 && descriptor.startSample >= wrapSample) {
+                input.transport.playheadBeat = transportInfo.loopStartBeat +
+                    static_cast<double>(descriptor.startSample - wrapSample) / samplesPerBeat;
+            } else {
+                input.transport.playheadBeat += static_cast<double>(descriptor.startSample) / samplesPerBeat;
+            }
         }
         input.sampleRate = sampleRate;
         input.numSamples = descriptor.numSamples;

@@ -199,8 +199,8 @@ std::uint32_t DeferredInputStore::droppedEventCount() const noexcept {
 // --- ChunkedInputReader ------------------------------------------------------------------------
 
 ChunkedInputReader::ChunkedInputReader(const DeferredInputStore& deferred, const juce::MidiBuffer& hostInput,
-                                       int numSamples) noexcept
-    : deferred_(&deferred), hostInput_(&hostInput), numSamples_(numSamples),
+                                       int numSamples, int forcedCutSample) noexcept
+    : deferred_(&deferred), hostInput_(&hostInput), numSamples_(numSamples), forcedCutSample_(forcedCutSample),
       hostIt_(hostInput.begin()), hostEnd_(hostInput.end()) {
     deferred.forEach([this](const std::uint8_t* data, int size) {
         const juce::MidiMessageMetadata md(data, size, 0);
@@ -260,7 +260,10 @@ bool ChunkedInputReader::next(std::span<sequencing::MidiEvent, capacity::inputEv
     }
 
     const int startSample = position_;
-    const int hardEnd = std::min(startSample + static_cast<int>(capacity::samplesPerChunk), numSamples_);
+    int hardEnd = std::min(startSample + static_cast<int>(capacity::samplesPerChunk), numSamples_);
+    if (forcedCutSample_ > startSample && forcedCutSample_ < hardEnd) {
+        hardEnd = forcedCutSample_;  // D-59: host loop wrap starts a new chunk
+    }
     int eventCount = 0;
     int groupOffset = -1;
     bool moreAtSameOffset = false;

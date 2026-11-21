@@ -76,6 +76,8 @@ inline constexpr char textGridDottedSuffix = '.';
 inline constexpr double beatEpsilon = 1.0e-6;
 inline constexpr double playheadJitterToleranceSamples = 1.0;
 inline constexpr double sampleRoundingEpsilon = 1.0e-6;
+// D-58: input arriving at most this many samples after a lane step start still counts for that step.
+inline constexpr int lateInputToleranceSamples = 64;
 inline constexpr double secondsPerMinute = 60.0;
 } // namespace timing
 

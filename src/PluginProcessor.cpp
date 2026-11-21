@@ -86,6 +86,10 @@ void PluginProcessor::processInternal(juce::AudioBuffer<float>& buffer, juce::Mi
 {
     const auto transport = phu::plugin::readHostTransport(getPlayHead());
     const auto config = phu::arpeggiator::buildConfiguration(parameterReader_.read());
+    auto& patterns = patternStore_.audioSide();
+    if (patterns.update()) {
+        engine_.core().setPatterns(patterns.read());
+    }
     engine_.process(midi, buffer.getNumSamples(), transport, sampleRate_, bypassed, config);
 
     const auto status = engine_.core().playbackStatus();

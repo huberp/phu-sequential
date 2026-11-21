@@ -156,3 +156,20 @@ TEST_CASE("TransportTracker: idle while never started stays idle across calls", 
     auto result = tracker.update(stopped(), sampleRate, oneBeatBlock);
     CHECK(result.transition == TransportTransition::idle);
 }
+
+TEST_CASE("TransportTracker: start after stop reports started again (REQ-10-1)", "[TransportTracker][REQ-10-1]") {
+    TransportTracker tracker;
+    (void)tracker.update(playing(0.3), sampleRate, oneBeatBlock);
+    (void)tracker.update(playing(1.3), sampleRate, oneBeatBlock);
+    REQUIRE(tracker.update(stopped(), sampleRate, oneBeatBlock).transition == TransportTransition::stopped);
+
+    SECTION("restart at an earlier position") {
+        auto result = tracker.update(playing(0.0), sampleRate, oneBeatBlock);
+        CHECK(result.transition == TransportTransition::started);
+        CHECK(result.clock.windowStartBeat == Approx(0.0));
+    }
+    SECTION("restart exactly where the previous run would have continued") {
+        auto result = tracker.update(playing(2.3), sampleRate, oneBeatBlock);
+        CHECK(result.transition == TransportTransition::started);
+    }
+}

@@ -44,4 +44,18 @@ using SampleOffset = std::int32_t;
     return static_cast<SampleOffset>(clampedOffset);
 }
 
+// D-59: sample offset in a host block at which a looping host jumps from loopEndBeat back to the loop
+// start: ceil((loopEndBeat - blockStartBeat) * samplesPerBeat - sampleRoundingEpsilon), i.e. the first
+// sample at or after the loop end. -1 if the block does not cross the loop end inside (0, numSamples).
+[[nodiscard]] inline int loopWrapSampleOffset(Beats blockStartBeat, Beats loopStartBeat, Beats loopEndBeat,
+                                              double samplesPerBeat, int numSamples) noexcept {
+    if (samplesPerBeat <= 0.0 || numSamples <= 1 || loopEndBeat - loopStartBeat <= constants::timing::beatEpsilon ||
+        blockStartBeat >= loopEndBeat - constants::timing::beatEpsilon) {
+        return -1;
+    }
+    const double rawOffset = (loopEndBeat - blockStartBeat) * samplesPerBeat - constants::timing::sampleRoundingEpsilon;
+    const double wrap = std::ceil(rawOffset);
+    return (wrap > 0.0 && wrap < static_cast<double>(numSamples)) ? static_cast<int>(wrap) : -1;
+}
+
 } // namespace phu::sequencing

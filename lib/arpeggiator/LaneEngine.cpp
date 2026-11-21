@@ -32,6 +32,8 @@ void LaneEngine::reset() noexcept {
     phaseOffsetBeat_ = 0;
     nextStepStart_ = NextStepStart{};
     currentStepIndex_ = -1;
+    hasLastStepStart_ = false;
+    retriggerPending_ = false;
     lastObservedSource_.reset();
     latchMemory_.reset();
     pattern_ = nullptr;
@@ -134,6 +136,8 @@ void LaneEngine::anchorTransportStart(Beats playheadBeat) noexcept {
     running_ = false;
     nextStepStart_ = NextStepStart{playheadBeat, 0, 0};
     currentStepIndex_ = -1;
+    hasLastStepStart_ = false;
+    retriggerPending_ = false;
 }
 
 void LaneEngine::startTransport(Beats playheadBeat) noexcept {
@@ -141,6 +145,8 @@ void LaneEngine::startTransport(Beats playheadBeat) noexcept {
     running_ = true;
     nextStepStart_ = NextStepStart{playheadBeat, 0, 0};
     currentStepIndex_ = -1;
+    hasLastStepStart_ = false;
+    retriggerPending_ = false;
     resynchronizeRequested_ = false;
 }
 
@@ -155,6 +161,8 @@ void LaneEngine::stop(LaneContext& context) noexcept {
     context.voices.releaseOwner(owner_, 0, context.output);
     latchMemory_.reset();
     running_ = false;
+    hasLastStepStart_ = false;
+    retriggerPending_ = false;
     resynchronizeRequested_ = false;
 }
 
@@ -177,6 +185,8 @@ void LaneEngine::resynchronize(
 
     resynchronizeRequested_ = false;
     running_ = true;
+    hasLastStepStart_ = false;
+    retriggerPending_ = false;
 
     if (committedLayout_.isEmpty()) {
         nextStepStart_ = NextStepStart{std::numeric_limits<Beats>::infinity(), 0, 0};
@@ -223,6 +233,39 @@ void LaneEngine::onHeldNotesChanged(SampleOffset offset, LaneContext& context) n
     if (change == SourceChange::released && !requested_.latch) {
         context.voices.releaseOwner(owner_, offset, context.output);
     }
+
+    // D-58: a new or changed source shortly after the current step start re-evaluates that step.
+    if ((change == SourceChange::started || change == SourceChange::pitchChanged) && hasLastStepStart_) {
+        const double lateBySamples = (context.clock.toBeat(offset) - lastStepStartBeat_) * context.clock.samplesPerBeat;
+        if (lateBySamples > timing::sampleRoundingEpsilon &&
+            lateBySamples <= static_cast<double>(timing::lateInputToleranceSamples) + timing::sampleRoundingEpsilon) {
+            retriggerPending_ = true;
+        }
+    }
+}
+
+void LaneEngine::applyPendingRetrigger(SampleOffset offset, LaneContext& context) noexcept {
+    if (!retriggerPending_) {
+        return;
+    }
+    retriggerPending_ = false;
+    if (!running_ || !hasLastStepStart_ || currentStepIndex_ < 0 || !stepWouldPlay(currentStepIndex_)) {
+        return;
+    }
+    if (!selectSource(context.heldNotes, effectiveCommittedSelector(context)).has_value()) {
+        return;
+    }
+    context.voices.releaseOwner(owner_, offset, context.output);
+    triggerStep(currentStepIndex_, lastStepStartBeat_, context, offset);
+}
+
+bool LaneEngine::stepWouldPlay(int stepIndex) const noexcept {
+    if (requested_.mute || pattern_ == nullptr) {
+        return false;
+    }
+    const auto slot = static_cast<std::size_t>(stepIndex);
+    const bool masked = discardedAtRevision_[slot] != 0 && pattern_->stepEditRevision[slot] <= discardedAtRevision_[slot];
+    return masked || pattern_->steps.step(stepIndex).enabled;
 }
 
 Beats LaneEngine::nextTimelineBeat() const noexcept {
@@ -232,7 +275,8 @@ Beats LaneEngine::nextTimelineBeat() const noexcept {
     return nextStepStart_.effectiveBeat;
 }
 
-void LaneEngine::triggerStep(int stepIndex, Beats triggerBeat, LaneContext& context) noexcept {
+void LaneEngine::triggerStep(int stepIndex, Beats triggerBeat, LaneContext& context,
+                             std::optional<SampleOffset> startOffset) noexcept {
     if (requested_.mute) {
         return;
     }
@@ -273,7 +317,7 @@ void LaneEngine::triggerStep(int stepIndex, Beats triggerBeat, LaneContext& cont
     const TickCount stepLengthTicks = committedLayout_.stepLengthTicks[slot];
     const Beats scheduledEnd = triggerBeat + gatedLengthBeats(stepLengthTicks, requested_.gatePercent);
     const VoiceStartRequest request{owner_, requested_.outputChannel, pitch, static_cast<int>(*velocity), scheduledEnd};
-    (void)context.voices.startVoice(request, context.clock.toSampleOffset(triggerBeat), context.output);
+    (void)context.voices.startVoice(request, startOffset.value_or(context.clock.toSampleOffset(triggerBeat)), context.output);
 }
 
 void LaneEngine::scheduleNextStepStart(int stepIndex, std::int64_t loopIndex) noexcept {
@@ -330,6 +374,9 @@ void LaneEngine::processNextTimelineEvent(LaneContext& context) noexcept {
     }
 
     currentStepIndex_ = stepIndex;
+    lastStepStartBeat_ = triggerBeat;
+    hasLastStepStart_ = true;
+    retriggerPending_ = false;
     triggerStep(stepIndex, triggerBeat, context);
     scheduleNextStepStart(stepIndex, loopIndex);
 }

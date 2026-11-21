@@ -63,6 +63,7 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 | REQ-4.3-4 | 4.3 | Release of older (non-followed) note has no effect | M08 | NOn 60, NOn 64; NOff 60 → still playing 64 | #7 | done |
 | REQ-4.4-1 | 4.4 | New note adopted at next step start | M14 | L1 idx 0 sounding 60 on step k; NOn 48 at step k+0.5 → step k keeps 60 until its end; step k+1 plays 48 | #10 | todo |
 | REQ-4.4-2 | 4.4 | Source release overrides quantization | M14 | see REQ-4.2-7 | #10 | todo |
+| REQ-4.4-3 | 4.4 (D-58) | Late chord change within 64 samples after a step start plays the new chord on that step | M14, M17 | 1/8 lane, gate 100 %, chord change 1 / 64 samples after step 0 (same block → new pitch at the step; next block → old pitch released and new pitch retriggered at the event, scheduled end kept); 65 samples late → waits for the next step | — | done |
 | REQ-4.5-1 | 4.5 | Position continues during silence | M13,M14 | chord empty for 2.0 beats; NOn at beat 2.1 → first note at next grid step (step 9 of 16) | #10 | todo |
 | REQ-4.5-2 | 4.5 | Legato changes never affect position | M14 | chord changes at various times → note starts stay on grid | #10 | todo |
 | REQ-4.5-3 | 4.5 | Mute does not stop position | M14 | mute 1 beat, unmute → next step is beat-aligned (step 5) | #10 | todo |
@@ -185,7 +186,7 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 
 | ID | § | Rule | Module | Scenario | Issue | Status |
 |---|---|---|---|---|---|---|
-| REQ-10-1 | 10 | Transport start resets all lanes to step 1 | M15,M17 | T+ at beat 3.1 → first step at playhead (offset), steps count from 1 | #11 | todo |
+| REQ-10-1 | 10 | Transport start resets all lanes to step 1 | M15,M17 | T+ at beat 3.1 → first step at playhead (offset), steps count from 1; also every T+ after T- (repeated start/stop) | #11 | done |
 | REQ-10-2 | 10 | Start at arbitrary PPQ (also non-integer) | M13 | T+ at 7.3 → phase offset 7.3 | #10,#11 | todo |
 | REQ-10-3 | 10 | Stop: all lanes stop, Note-Offs for all sounding notes | M17 | sounding gate 200; T- → all Offs at stop sample | #11 | todo |
 | REQ-10-4 | 10 | Without transport: silent, no internal clock | M17 | transport never started + notes held → no output | #11 | todo |
@@ -199,6 +200,7 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 | REQ-10-12 | 10 | Forward move of ≤ one buffer is no discontinuity | M15 | normal playback block-to-block | #11 | todo |
 | REQ-10-13 | 10 | Block splitting invariance: same absolute output for any block size | M17 | run same scenario with block sizes 32…4096 | #11 | todo |
 | REQ-10-14 | 10 | Beats only, never samples (core stores beats) | M01–M17 | `n/t` as test; covered by REQ-10-10/-13 | #5 | n/t: design rule, indirectly verified |
+| REQ-10-15 | 10 (D-59) | Host loop wrap inside a host block: discontinuity at the wrap sample, step 1 of the new pass not cut | M04, M19 | loop [0,16), 4096-sample blocks, wrap at offset 3072 → On at wrap, next Off/On one step later; `loopWrapSampleOffset` cases; loop points read only while looping | — | done |
 
 ## §11 Live changes
 

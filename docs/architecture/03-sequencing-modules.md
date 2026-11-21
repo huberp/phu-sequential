@@ -86,6 +86,7 @@ inline constexpr char textGridDottedSuffix = '.';
 inline constexpr double beatEpsilon = 1.0e-6;
 inline constexpr double playheadJitterToleranceSamples = 1.0;
 inline constexpr double sampleRoundingEpsilon = 1.0e-6;
+inline constexpr int lateInputToleranceSamples = 64;  // D-58
 inline constexpr double secondsPerMinute = 60.0;
 } // namespace timing
 
@@ -233,6 +234,10 @@ using SampleOffset = std::int32_t;
 // (returns 0 when numSamples <= 0).
 [[nodiscard]] SampleOffset beatToSampleOffset(Beats beat, Beats blockStartBeat,
                                               double samplesPerBeat, int numSamples) noexcept;         // [RT]
+// D-59: first sample in (0, numSamples) at or after loopEndBeat: ceil((loopEnd - blockStart) * spb - sampleRoundingEpsilon);
+// -1 if the block does not cross the loop end, the loop region is empty or spb <= 0.
+[[nodiscard]] int loopWrapSampleOffset(Beats blockStartBeat, Beats loopStartBeat, Beats loopEndBeat,
+                                       double samplesPerBeat, int numSamples) noexcept;                // [RT]
 }
 ```
 
