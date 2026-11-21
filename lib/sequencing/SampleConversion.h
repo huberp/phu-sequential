@@ -29,18 +29,19 @@ using SampleOffset = std::int32_t;
     return samples / samplesPerBeat;
 }
 
-// D-15: floor((beat - blockStartBeat) * samplesPerBeat + sampleRoundingEpsilon), clamped to [0, numSamples-1]
-// (returns 0 when numSamples <= 0).
+// D-15/D-60: ceil((beat - blockStartBeat) * samplesPerBeat - sampleRoundingEpsilon), i.e. the first sample at or
+// after the beat, clamped to [0, numSamples-1] (returns 0 when numSamples <= 0). Rounding up keeps a host event
+// for the same musical position (floored, rounded or ceiled by the host) at or before the generated event.
 [[nodiscard]] inline SampleOffset beatToSampleOffset(Beats beat, Beats blockStartBeat,
                                               double samplesPerBeat, int numSamples) noexcept {
     if (numSamples <= 0) {
         return 0;
     }
-    const double rawOffset = (beat - blockStartBeat) * samplesPerBeat + constants::timing::sampleRoundingEpsilon;
-    const double flooredOffset = std::floor(rawOffset);
-    const double clampedOffset = flooredOffset < 0.0
+    const double rawOffset = (beat - blockStartBeat) * samplesPerBeat - constants::timing::sampleRoundingEpsilon;
+    const double roundedOffset = std::ceil(rawOffset);
+    const double clampedOffset = roundedOffset < 0.0
         ? 0.0
-        : (flooredOffset > static_cast<double>(numSamples - 1) ? static_cast<double>(numSamples - 1) : flooredOffset);
+        : (roundedOffset > static_cast<double>(numSamples - 1) ? static_cast<double>(numSamples - 1) : roundedOffset);
     return static_cast<SampleOffset>(clampedOffset);
 }
 

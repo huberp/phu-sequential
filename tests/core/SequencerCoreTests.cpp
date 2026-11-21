@@ -547,7 +547,8 @@ TEST_CASE("SequencerCore: every transport start re-anchors the lanes at step 1 (
 }
 
 
-// --- Regression: chord change slightly after a step start (user report: ABAB chords, D2 at 3.1 missing) ---
+// --- Regression: chord change exactly at a step start, host ppq slightly ahead (user report: ABAB chords,
+// D2 at 3.1 missing, tiny off-grid F2 notes) ---
 
 namespace {
 
@@ -555,14 +556,11 @@ constexpr int chordD2 = 38;
 constexpr int chordF2 = 41;
 constexpr std::int64_t bar3Sample = 192000;  // beat 8.0, step 0 of the second loop
 
-struct LateChordChangeResult {
-    std::vector<CapturedEvent> events;  // captured at or after bar3Sample - eighthSamples
-};
-
-// Lane: 1/8, 16 steps, gate 100 %, only step 0 enabled. Chord B (lowest F2) is held, then at bar 3
-// it is replaced by chord A (lowest D2) `lateBySamples` after the step. With `stepEndsBlock` the
-// step falls on the last sample of a block and the change arrives in the next block.
-LateChordChangeResult runLateChordChange(int lateBySamples, bool stepEndsBlock) {
+// Lane: 1/8, 16 steps, gate 100 %, only step 0 enabled. Chord B (lowest F2) is held, then chord A
+// (lowest D2) replaces it at bar 3 + `changeLateBy`. The block that decides the step reports a
+// playhead `ppqAheadSamples` ahead of the true position (host ppq noise). With `stepOnBlockEnd` that
+// block ends exactly at bar 3 and the chord change arrives at offset 0 of the next block.
+std::vector<CapturedEvent> runChordChangeAtStep(double ppqAheadSamples, bool stepOnBlockEnd, int changeLateBy = 0) {
     auto config = makeEighthByStepConfig();
     config.lanes[0].gatePercent = 100;
     ScenarioRunner runner(config);
@@ -574,89 +572,54 @@ LateChordChangeResult runLateChordChange(int lateBySamples, bool stepEndsBlock) 
     runner.core().setPatterns(snapshot);
 
     const std::vector<MidiEvent> chordB{makeNoteOn(0, 1, chordF2, 90), makeNoteOn(0, 1, 46, 90), makeNoteOn(0, 1, 48, 90)};
-    runPlaying(runner, 0.0, bar3Sample - 4096, chordB);  // next 4096-sample block contains bar 3
+    runPlaying(runner, 0.0, bar3Sample - 4096, chordB);
 
     const auto changeAt = [](SampleOffset offset) {
         return std::vector<MidiEvent>{makeNoteOff(offset, 1, chordF2), makeNoteOff(offset, 1, 46), makeNoteOff(offset, 1, 48),
                                       makeNoteOn(offset, 1, chordD2, 90), makeNoteOn(offset, 1, chordF2, 90), makeNoteOn(offset, 1, 45, 90)};
     };
     const auto beatAtCursor = [&runner] { return static_cast<double>(runner.sampleCursor()) / samplesPerBeatConst; };
+    const double noisyBeat = beatAtCursor() + ppqAheadSamples / samplesPerBeatConst;
 
-    if (stepEndsBlock) {
-        const auto toStep = static_cast<int>(bar3Sample - runner.sampleCursor() + 1);
-        runner.runChunk(makeInput({}, transportAt(beatAtCursor()), toStep));
-        runner.runChunk(makeInput(changeAt(lateBySamples - 1), transportAt(beatAtCursor()), 4096));
+    if (stepOnBlockEnd) {
+        const auto toStep = static_cast<int>(bar3Sample - runner.sampleCursor());
+        runner.runChunk(makeInput({}, transportAt(noisyBeat), toStep));
+        runner.runChunk(makeInput(changeAt(changeLateBy), transportAt(beatAtCursor()), 4096));
     } else {
         const auto stepOffset = static_cast<SampleOffset>(bar3Sample - runner.sampleCursor());
-        runner.runChunk(makeInput(changeAt(stepOffset + lateBySamples), transportAt(beatAtCursor()), 4096));
+        runner.runChunk(makeInput(changeAt(stepOffset + changeLateBy), transportAt(noisyBeat), 4096));
     }
     while (runner.sampleCursor() < bar3Sample + 2 * eighthSamples) {
         runner.runChunk(makeInput({}, transportAt(beatAtCursor()), 4096));
     }
 
-    LateChordChangeResult result;
+    std::vector<CapturedEvent> noteOnsFromBar3;
     for (const auto& event : runner.captured()) {
-        if (event.absoluteSample >= bar3Sample - eighthSamples) {
-            result.events.push_back(event);
+        if (event.absoluteSample >= bar3Sample - eighthSamples && event.kind == MidiEventKind::noteOn) {
+            noteOnsFromBar3.push_back(event);
         }
     }
-    return result;
+    return noteOnsFromBar3;
 }
 
 }  // namespace
 
-TEST_CASE("SequencerCore: chord change up to the late-input tolerance after a step plays the new chord (D-58)",
-          "[SequencerCore][REQ-4][D-58]") {
-    const int lateBy = GENERATE(1, constants::timing::lateInputToleranceSamples);
-    const auto result = runLateChordChange(lateBy, false);
-    INFO("late by " << lateBy << " samples");
+TEST_CASE("SequencerCore: chord change at the step sample plays the new chord despite host ppq noise (D-60)",
+          "[SequencerCore][REQ-4][D-60]") {
+    const double ppqAheadSamples = GENERATE(0.0, 0.001, 0.4, 0.9);
+    const bool stepOnBlockEnd = GENERATE(false, true);
+    INFO("ppq ahead by " << ppqAheadSamples << " samples, step on block end " << stepOnBlockEnd);
 
-    std::vector<CapturedEvent> ons;
-    for (const auto& event : result.events) {
-        if (event.kind == MidiEventKind::noteOn) {
-            ons.push_back(event);
-        }
-    }
+    const auto ons = runChordChangeAtStep(ppqAheadSamples, stepOnBlockEnd);
     REQUIRE(ons.size() == 1);
     CHECK(ons[0].pitch == chordD2);
     CHECK(ons[0].absoluteSample == bar3Sample);
 }
 
-TEST_CASE("SequencerCore: chord change in the block after a step retriggers that step (D-58)", "[SequencerCore][REQ-4][D-58]") {
-    const int lateBy = GENERATE(1, constants::timing::lateInputToleranceSamples);
-    const auto result = runLateChordChange(lateBy, true);
-    INFO("late by " << lateBy << " samples");
-
-    // Old source F2 starts at the step, the late chord change replaces it by D2 for the rest of the step.
-    std::vector<CapturedEvent> lane;
-    for (const auto& event : result.events) {
-        if (event.kind == MidiEventKind::noteOn || event.kind == MidiEventKind::noteOff) {
-            lane.push_back(event);
-        }
-    }
-    REQUIRE(lane.size() >= 4);
-    CHECK(lane[0].kind == MidiEventKind::noteOn);
-    CHECK(lane[0].pitch == chordF2);
-    CHECK(lane[0].absoluteSample == bar3Sample);
-    CHECK(lane[1].kind == MidiEventKind::noteOff);
-    CHECK(lane[1].pitch == chordF2);
-    CHECK(lane[1].absoluteSample == bar3Sample + lateBy);
-    CHECK(lane[2].kind == MidiEventKind::noteOn);
-    CHECK(lane[2].pitch == chordD2);
-    CHECK(lane[2].absoluteSample == bar3Sample + lateBy);
-    CHECK(lane[3].kind == MidiEventKind::noteOff);
-    CHECK(lane[3].pitch == chordD2);
-    CHECK(lane[3].absoluteSample == bar3Sample + eighthSamples);  // scheduled end of the step kept
+TEST_CASE("SequencerCore: chord change after the step sample waits for the next step (sec. 4.4)", "[SequencerCore][REQ-4][D-60]") {
+    const bool stepOnBlockEnd = GENERATE(false, true);
+    const auto ons = runChordChangeAtStep(0.0, stepOnBlockEnd, 1);
+    REQUIRE(ons.size() == 1);
+    CHECK(ons[0].pitch == chordF2);
+    CHECK(ons[0].absoluteSample == bar3Sample);
 }
-
-TEST_CASE("SequencerCore: chord change later than the tolerance waits for the next step (sec. 4.4)", "[SequencerCore][REQ-4][D-58]") {
-    const auto result = runLateChordChange(constants::timing::lateInputToleranceSamples + 1, false);
-    REQUIRE_FALSE(result.events.empty());
-    CHECK(result.events.front().kind == MidiEventKind::noteOn);
-    CHECK(result.events.front().pitch == chordF2);
-    CHECK(result.events.front().absoluteSample == bar3Sample);
-    for (const auto& event : result.events) {
-        CHECK_FALSE((event.kind == MidiEventKind::noteOn && event.pitch == chordD2));
-    }
-}
-

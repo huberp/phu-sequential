@@ -32,12 +32,14 @@ TEST_CASE("SampleConversion: samplesToBeats returns 0 when samplesPerBeat is 0",
     CHECK(samplesToBeats(1000.0, 0.0) == 0.0);
 }
 
-TEST_CASE("SampleConversion: beatToSampleOffset floors and clamps to the block", "[M04][sample-conversion][D-15]") {
+TEST_CASE("SampleConversion: beatToSampleOffset rounds up and clamps to the block", "[M04][sample-conversion][D-15][D-60]") {
     const double spb = 1000.0;
     CHECK(beatToSampleOffset(0.5, 0.0, spb, 1024) == 500);
     CHECK(beatToSampleOffset(2.0, 0.0, spb, 512) == 511);     // clamped to numSamples - 1
     CHECK(beatToSampleOffset(-1.0, 0.0, spb, 512) == 0);      // clamped to 0
     CHECK(beatToSampleOffset(1.5, 1.0, spb, 1024) == 500);    // relative to blockStartBeat
+    CHECK(beatToSampleOffset(0.5003, 0.0, spb, 1024) == 501); // first sample at or after the beat
+    CHECK(beatToSampleOffset(0.4996, 0.0, spb, 1024) == 500); // host ppq slightly ahead: same sample as exact
 }
 
 TEST_CASE("SampleConversion: beatToSampleOffset returns 0 when numSamples <= 0", "[M04][sample-conversion]") {

@@ -149,8 +149,6 @@ public:
 
     // After each input event that changed held notes (and after a chord-channel change), at that event's offset.
     void onHeldNotesChanged(SampleOffset offset, LaneContext&) noexcept;
-    // After the last input event of a same-offset group (D-58, behavior item 3).
-    void applyPendingRetrigger(SampleOffset offset, LaneContext&) noexcept;
 
     [[nodiscard]] Beats nextTimelineBeat() const noexcept;  // effective start of the next step; +inf if none
     void processNextTimelineEvent(LaneContext&) noexcept;   // exactly one step start at nextTimelineBeat()
@@ -178,8 +176,6 @@ private:
     struct NextStepStart { Beats effectiveBeat; std::int64_t loopIndex; int stepIndex; };
     NextStepStart nextStepStart_{};              // effective (swung) start, computed with the swing read at scheduling
     int currentStepIndex_ = -1;
-    Beats lastStepStartBeat_ = 0;                // T of currentStepIndex_ (D-58)
-    bool hasLastStepStart_ = false, retriggerPending_ = false;  // cleared on start/stop/resync/reset
     std::optional<SourceNote> lastObservedSource_;
     std::optional<SourceNote> latchMemory_;
 
@@ -199,7 +195,7 @@ Behavior (normative). Notation: `g_k` = unswung grid start of step *k*, `e_k` = 
 1. **Step start** of step *k* at `T = e_k` (`nextStepStart_`):
    1. If `layoutPending_`: let `k' = k mod newLayout.stepCount`; `phaseOffset = reanchorPhaseOffset(T, k', newLayout)` (grid start of k' := T); commit layout; k := k' (§5.4, D-11). The re-anchored step starts at `T` and is not swung again. No step skipped or repeated. Every layout commit (here, in `stop`, `resynchronize`, or while stopped) with both layouts non-empty and `new.stepCount < old.stepCount` records a discard: `++discardRevision_`, `discardedAtRevision_[s] = currentDocumentRevision_` for all `s ≥ new.stepCount` (§5.4 "discarded", D-32). If the new layout is empty: release lane voices at `T`, no further step starts (D-9).
    2. If `selectorPending_`: commit selector; re-evaluate source; if it classifies as `released` and latch is off → release lane voices at `T` (D-23).
-   3. `currentStepIndex_ = k`; `lastStepStartBeat_ = T`; clear `retriggerPending_`; **trigger** (item 2) at `T`.
+   3. `currentStepIndex_ = k`; **trigger** (item 2) at `T`.
    4. Schedule the next step start: step k+1 (wrap → step 0 of loopIndex+1, never swung); `swing = requested_.swingPercent` **read now** (D-50); `nextStepStart_.effectiveBeat = g_{k+1} − swingAdvanceBeats(len(k+1), k+1, swing, committedLayout_.swingApplies)`. Because the advance is ≤ len/2, `e_{k+1} > T`; it may lie in the current or a future block.
 2. **Trigger** of step *k* at `T` (§4.4, §6, §7, §8):
    1. If muted → nothing.
@@ -208,8 +204,8 @@ Behavior (normative). Notation: `g_k` = unswung grid start of step *k*, `e_k` = 
    4. Step data = `pattern_->steps.step(k)`, or `defaultStepData()` if masked: `discardedAtRevision_[k] != 0 && pattern_->stepEditRevision[k] <= discardedAtRevision_[k]` (D-32). `k` is always < the committed step count, so slots beyond it are never read (I-1). If `!enabled` → nothing.
    5. `velocity = computeOutputVelocity(requested_.velocityMode, value[mode], note.velocity)`; none → nothing (§7.2).
    6. `pitch = note.pitch + transpose`; outside 0..127 → nothing (§8, no clamping).
-   7. `voices.startVoice({owner_, outputChannel, pitch, velocity, T + gatedLengthBeats(len(k), gate)}, clock.toSampleOffset(T),    output)` (a D-58 retrigger passes the event offset instead of `clock.toSampleOffset(T)`, keeping the end beat).
-3. **Source change** (`onHeldNotesChanged`): `current = selectSource(...)`; `change = classifySourceChange(lastObservedSource_, current)`; store. If not running → return. If latch on, not muted and `current` → `latchMemory_ = current` (D-22). If `change == released` and latch off → `releaseOwner(owner_, offset)` (§4.4, §9.2) — immediately, also if the release falls between a swung step start `e_k` and its grid start `g_k` (the swung note belongs to step *k* and is released like any sounding lane note). `pitchChanged`/`started` → nothing now; adopted at the next step start (§4.2, §4.4, D-13); a source appearing after `e_k` (even before `g_k`) waits for step k+1 — **except** (D-58) within `lateInputToleranceSamples` after `T`: then `retriggerPending_` is set, and `applyPendingRetrigger(offset)` (after the complete same-offset input group) re-evaluates step k if it is enabled, not muted and a source exists: `releaseOwner(owner_, offset)`, then trigger step k with start offset `offset` and the original end `T + gated length`. Same-block late events never get here (the core already processed them before the step, §5 step 5).
+   7. `voices.startVoice({owner_, outputChannel, pitch, velocity, T + gatedLengthBeats(len(k), gate)}, clock.toSampleOffset(T), output)`.
+3. **Source change** (`onHeldNotesChanged`): `current = selectSource(...)`; `change = classifySourceChange(lastObservedSource_, current)`; store. If not running → return. If latch on, not muted and `current` → `latchMemory_ = current` (D-22). If `change == released` and latch off → `releaseOwner(owner_, offset)` (§4.4, §9.2) — immediately, also if the release falls between a swung step start `e_k` and its grid start `g_k` (the swung note belongs to step *k* and is released like any sounding lane note). `pitchChanged`/`started` → nothing now; adopted at the next step start (§4.2, §4.4, D-13); a source appearing after `e_k` (even before `g_k`) waits for step k+1.
 4. **updateSettings** (at block start, offset 0, after the clock is known): mute off→on: release lane voices, clear latch memory. latch on→off: release lane voices, clear latch memory (§4.6). latch off→on: `latchMemory_ = current source` if any. Selector differs from committed → pending (if not running: commit immediately, D-18). Requested layout differs from committed → pending (if not running: commit immediately; if running and committed layout is empty: commit and set `resynchronizeRequested_`, executed by the core after the transport transition, D-9, §5.2 step 4).
 5. Muted lanes keep processing step starts (position runs, pending changes commit, §4.5).
 6. **Transport start / loop restart / swing**: `startTransport(p)` sets `nextStepStart_ = {p, 0, 0}`; nothing before step 0 is ever scheduled, so no swung step precedes the playhead at transport start. Loop restart is step 0 of the next loop at its unswung grid start (D-4). Pending changes take effect at the next *effective* step start, so a change requested after `e_k` but before `g_k` waits for step k+1.

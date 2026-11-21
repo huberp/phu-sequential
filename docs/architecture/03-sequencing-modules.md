@@ -86,7 +86,6 @@ inline constexpr char textGridDottedSuffix = '.';
 inline constexpr double beatEpsilon = 1.0e-6;
 inline constexpr double playheadJitterToleranceSamples = 1.0;
 inline constexpr double sampleRoundingEpsilon = 1.0e-6;
-inline constexpr int lateInputToleranceSamples = 64;  // D-58
 inline constexpr double secondsPerMinute = 60.0;
 } // namespace timing
 
@@ -230,7 +229,8 @@ using SampleOffset = std::int32_t;
 [[nodiscard]] constexpr double samplesPerBeat(double tempoBeatsPerMinute, double sampleRate) noexcept; // [RT]
 [[nodiscard]] constexpr double beatsToSamples(Beats duration, double samplesPerBeat) noexcept;         // [RT]
 [[nodiscard]] constexpr Beats  samplesToBeats(double samples, double samplesPerBeat) noexcept;         // [RT]
-// D-15: floor((beat - blockStartBeat) * samplesPerBeat + sampleRoundingEpsilon), clamped to [0, numSamples-1]
+// D-15/D-60: ceil((beat - blockStartBeat) * samplesPerBeat - sampleRoundingEpsilon) (first sample at or after the beat),
+// clamped to [0, numSamples-1]
 // (returns 0 when numSamples <= 0).
 [[nodiscard]] SampleOffset beatToSampleOffset(Beats beat, Beats blockStartBeat,
                                               double samplesPerBeat, int numSamples) noexcept;         // [RT]

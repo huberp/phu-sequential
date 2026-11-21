@@ -63,7 +63,7 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 | REQ-4.3-4 | 4.3 | Release of older (non-followed) note has no effect | M08 | NOn 60, NOn 64; NOff 60 → still playing 64 | #7 | done |
 | REQ-4.4-1 | 4.4 | New note adopted at next step start | M14 | L1 idx 0 sounding 60 on step k; NOn 48 at step k+0.5 → step k keeps 60 until its end; step k+1 plays 48 | #10 | todo |
 | REQ-4.4-2 | 4.4 | Source release overrides quantization | M14 | see REQ-4.2-7 | #10 | todo |
-| REQ-4.4-3 | 4.4 (D-58) | Late chord change within 64 samples after a step start plays the new chord on that step | M14, M17 | 1/8 lane, gate 100 %, chord change 1 / 64 samples after step 0 (same block → new pitch at the step; next block → old pitch released and new pitch retriggered at the event, scheduled end kept); 65 samples late → waits for the next step | — | done |
+| REQ-4.4-3 | 4.4 (D-60) | Chord change at the exact step sample plays the new chord on that step, even if the host PPQ is slightly ahead; a change one sample after the step waits for the next step | M04, M17 | 1/8 lane, gate 100 %, chord change at step 0 of loop 2; PPQ ahead 0 / 0.001 / 0.4 / 0.9 samples; mid-block and step on block end; change +1 sample → old pitch at the step | — | done |
 | REQ-4.5-1 | 4.5 | Position continues during silence | M13,M14 | chord empty for 2.0 beats; NOn at beat 2.1 → first note at next grid step (step 9 of 16) | #10 | todo |
 | REQ-4.5-2 | 4.5 | Legato changes never affect position | M14 | chord changes at various times → note starts stay on grid | #10 | todo |
 | REQ-4.5-3 | 4.5 | Mute does not stop position | M14 | mute 1 beat, unmute → next step is beat-aligned (step 5) | #10 | todo |
