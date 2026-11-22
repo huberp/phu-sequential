@@ -2,6 +2,8 @@
 
 A VST3 MIDI effect arpeggiator sequencer. See [spec/README.md](spec/README.md) for the complete specification.
 
+**Using the plugin?** Read the [User Guide](docs/USER_GUIDE.md) (also shipped as `USER_GUIDE.pdf` in every release zip).
+
 ## Prerequisites
 
 - CMake 3.31.6 or later

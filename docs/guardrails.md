@@ -468,6 +468,8 @@ genhtml coverage.info --output-directory coverage-report
 2. `build-linux.yml` - Linux build (x64, arm64)
 3. `build-macos.yml` - macOS build (x64, arm64)
 4. `build-windows-vst3.yml` - Windows build (x64)
+5. `generate-pdf.yml` - Renders a Markdown file to PDF (pandoc + xelatex, DejaVu fonts; no emoji in the source)
+6. `release.yml` - On `v*` tags (or manual dispatch): builds and packages all platforms via the reusable build workflows, renders `docs/USER_GUIDE.md` to `USER_GUIDE.pdf`, injects it into every zip and publishes the GitHub Release
 
 **Guardrails in CI**:
 

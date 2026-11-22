@@ -9,6 +9,8 @@ This document has been split into focused sub-documents for better token efficie
 
 Use `docs/module-map.md` for token-efficient module lookup.
 
+End-user documentation lives in [USER_GUIDE.md](USER_GUIDE.md) (rendered to `USER_GUIDE.pdf` for release zips; keep it ASCII/emoji-free for the PDF build).
+
 ### Core Structure
 
 | Section | Document | Description | Size |

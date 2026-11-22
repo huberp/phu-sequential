@@ -102,6 +102,7 @@ catch_discover_tests(SequentialAdapterTests)
 
 - `CMakePresets.json` v5, hidden mixins `os-<platform>-<arch>`, `build-<debug|release>`, `formats-<vst3|vst3-au>`; visible configure presets `<os>-<arch>-<formats>-<config>` (e.g. `linux-x64-vst3-release`, `macos-arm64-vst3-au-release`, `windows-x64-vst3-debug`) and matching `-build` and `-test` presets. Generators: Windows "Visual Studio 18 2026", macOS Xcode, Linux Ninja.
 - Workflows: `build.yml` → reusable `build-windows-vst3.yml`, `build-linux.yml`, `build-macos.yml`; each configures, builds, runs `ctest --output-on-failure`; pluginval (latest release zip, `--strictness-level 10`) on Windows and macOS (§15 test in CI); Linux runs unit tests only (plus pluginval optional). Artifacts: VST3 bundles (and AU on macOS).
+- Release: `release.yml` (tag `v*` or manual dispatch) calls the same reusable workflows with `ref-name` set (zips `phu-sequential-<os>-<arch>-<version>.zip`), renders the end-user guide `docs/USER_GUIDE.md` (not the developer `README.md`) to `USER_GUIDE.pdf` via `generate-pdf.yml`, adds the PDF to every zip and publishes the GitHub Release.
 
 ---
 
