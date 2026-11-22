@@ -40,7 +40,7 @@ Let `n = numSamples` (of this chunk), `cfg = clampConfiguration(configuration)`.
 3. **Settings**: every lane `updateSettings(cfg.lanes[i], patterns_.lanes[i], ctx)` (change classes §4.1 of this doc; immediate releases at offset 0; `resynchronize` is never called here, only requested, D-9).
 4. **Transitions** (in this order):
    1. `stopped`: `voices_.releaseAll(0)` (lane **and** pass-through voices, oldest first), `passThrough_.clearTracking()`, every lane `stop(ctx)` (pending committed, latch cleared; §10 "all sounding notes", §4.6, D-17, D-18).
-   2. `started`: lanes `startTransport(clock.blockStartBeat)` (§10: phase offset = playhead; step 0 at the playhead, D-4).
+   2. `started`: lanes `startTransport(clock.blockStartBeat)` (§10: phase offset = playhead; step 0 at the playhead, D-4). D-62 enables one startup source check per lane: an unmuted empty-source lane schedules one extra item at the following sample before consuming step 0 (§4.3 item 7). Input ordering remains D-14; the musical phase and gate deadline remain unchanged.
    3. `discontinuity`: `voices_.releaseAll(0)`, `passThrough_.clearTracking()` (D-17), then lanes `resynchronize(clock.blockStartBeat, 0, releaseVoices = false)` (§10, D-19).
    4. `continuous`: lanes with `resyncAfterBypass` or `resynchronizeRequested()`: `resynchronize(clock.windowStartBeat, 0, releaseVoices = false)` (voices were already flushed on bypass enter; D-9). For `started`/`stopped`/`discontinuity` the transition itself has cleared the request.
    5. If the chord input channel changed and the transport is playing: every lane `onHeldNotesChanged(0)` (D-24) — after 4.1–4.4 so the lanes see their post-transition state.
@@ -52,12 +52,14 @@ Let `n = numSamples` (of this chunk), `cfg = clampConfiguration(configuration)`.
    - next input event `e` (if any) is processed first iff no timeline item exists, or `e.sampleOffset < sItem`, or (`e.sampleOffset == sItem` and the timeline item is a lane event) — see 5.3;
    - **input event**: `e' = normalizeNoteEvent(e)`; `changed = heldNotes_.apply(e')`; `passThrough_.process(e', policy, voices_, output)`; if `changed` (note events, CC64) and playing: every lane `onHeldNotesChanged(e.sampleOffset)`;
    - **voice end** (item is a voice end, i.e. `tv <= tl`, or always in a same-offset piece): `voices_.endVoice(handle, sItem, output)`;
-   - **lane event**: `lanes_[i].processNextTimelineEvent(ctx)` (one step start: commits, then trigger; events at `clock.toSampleOffset(beat)`);
+   - **lane event**: `lanes_[i].processNextTimelineEvent(ctx)` (one step start: commits, then trigger; events at `clock.toSampleOffset(beat)`). D-62's initial empty-source check emits nothing and does not advance; its one-sample rendezvous then triggers or silently consumes step 0;
    - stop when inputs are exhausted and no timeline item exists.
    Items with `beat < windowStartBeat` cannot exist (lanes and registry are only scheduled forward; a swung step start is scheduled at the preceding step start, which is earlier, D-4/D-50); items exactly at `windowStartBeat` are inside the window.
 6. Publish: `PlaybackStatus` from lanes' `status()`; `BlockResult.discardStateChanged` if any lane's discard revision or mask changed (D-32); dropped event count.
 
 Bound per core call (chunk ≤ `samplesPerChunk` = 4096 samples, ≤ 4096 input events): each lane processes ≤ (step starts in the window) items, each emitting ≤ 3 events (retrigger Off, eviction Off, On); voice ends ≤ starts + 2048; input ≤ 4096 events → ≤ 2 output events each; block-start releases ≤ 2048. With the shortest step (1/64 triplet = 1/24 beat) at 999 BPM, 48 kHz, 4096 samples ≈ 34 step starts per lane: ≤ 2048 + 8192 + 8·34·3 + (8·34 + 2048) = 13 376 ≤ 14 336 = 16384 − `noteOffReserveEvents` (2048), so even core Note-Ons are never refused; Note-Offs additionally own the 2048 reserved slots (M06 partition, D-30), so no core output event is ever dropped.
+
+D-62 adds at most one non-emitting source-check item per lane at transport start or at a resync that lands on a step start; it adds no output events to the bound above.
 
 ### 5.3 Ordering rules for equal times (D-14)
 

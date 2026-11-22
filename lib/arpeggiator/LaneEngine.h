@@ -68,7 +68,8 @@ private:
     void commitPendingLayoutWithoutReanchor() noexcept;
     void recordDiscardIfDecrease(const sequencing::GridLayout& oldLayout,
                                   const sequencing::GridLayout& newLayout) noexcept;
-    void triggerStep(int stepIndex, sequencing::Beats triggerBeat, LaneContext& context) noexcept;
+    void triggerStep(int stepIndex, sequencing::Beats triggerBeat, sequencing::SampleOffset offset,
+                     LaneContext& context) noexcept;
     void scheduleNextStepStart(int stepIndex, std::int64_t loopIndex) noexcept;
 
 
@@ -85,6 +86,9 @@ private:
     bool layoutPending_ = false;
     bool resynchronizeRequested_ = false;
     bool running_ = false;
+    bool rendezvousPending_ = false;
+    bool rendezvousDeferred_ = false;
+    sequencing::Beats rendezvousBeat_ = 0;  // musical beat of the step held back by D-62
     sequencing::Beats phaseOffsetBeat_ = 0;
     struct NextStepStart {
         sequencing::Beats effectiveBeat;

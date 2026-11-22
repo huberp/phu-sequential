@@ -23,7 +23,7 @@ inline constexpr int padHeight = 18;
 inline constexpr int minimumBarHeight = 12;
 
 struct LaneRowRegions {
-    juce::Rectangle<int> sidebar;     // badge + color picker, mute/latch, timing source switch
+    juce::Rectangle<int> sidebar;     // badge + color picker, mute/latch, timing source switch, lane commands
     juce::Rectangle<int> controlRow1; // input mode, follow, output channel, transpose, gate
     juce::Rectangle<int> controlRow2; // base timing, subdivision, swing, step count, velocity mode
     juce::Rectangle<int> textGrid;

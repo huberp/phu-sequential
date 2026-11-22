@@ -6,6 +6,7 @@
 #include "PresetManager.h"
 #include "StateMigration.h"
 #include "StateSerializer.h"
+#include "editor/LaneControlStrip.h"
 #include "sequencing/Constants.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -437,6 +438,96 @@ TEST_CASE("LaneEditHistory: coalesced edits collapse into one undo step", "[M27]
     history.undo();
     CHECK(captureLaneState(apvts, store, 0) == before);
     CHECK_FALSE(history.canUndo());
+}
+
+TEST_CASE("Lane command selector executes repeatable lane edits with undo", "[M23][M27][REQ-24-3]") {
+    juce::ScopedJuceInitialiser_GUI gui;
+    DummyProcessor processor;
+    juce::AudioProcessorValueTreeState apvts(processor, nullptr, "Parameters", createParameterLayout());
+    PatternStore store;
+    LaneEditHistory history(apvts, store);
+    juce::Component parent;
+    phu::plugin::editor::LaneControlStrip strip(apvts, history, 1, parent);
+    strip.layOut(phu::plugin::editor::layout::computeLaneRowRegions(
+        {0, 0, 1000, phu::sequencing::constants::editor::laneRowHeight}));
+
+    juce::ComboBox* selector = nullptr;
+    juce::Component* base = nullptr;
+    for (auto* child : parent.getChildren()) {
+        if (child->getName() == "Lane commands") {
+            selector = dynamic_cast<juce::ComboBox*>(child);
+        } else if (auto* button = dynamic_cast<juce::TextButton*>(child); button != nullptr && button->getButtonText() == "Base") {
+            base = button;
+        }
+    }
+    REQUIRE(selector != nullptr);
+    REQUIRE(base != nullptr);
+    CHECK(selector->getY() > base->getBottom());
+    CHECK(selector->getBottom() <= phu::sequencing::constants::editor::laneRowHeight);
+
+    const auto itemId = [&](const juce::String& name) {
+        for (int i = 0; i < selector->getNumItems(); ++i) {
+            if (selector->getItemText(i) == name) {
+                return selector->getItemId(i);
+            }
+        }
+        return 0;
+    };
+    for (const auto* name : {"Fill random...", "Arithmetic sequence...", "Euclidean pattern..."}) {
+        const int id = itemId(name);
+        REQUIRE(id != 0);
+        CHECK_FALSE(selector->isItemEnabled(id));
+        selector->setSelectedId(id, juce::sendNotificationSync);
+        CHECK_FALSE(history.canUndo());
+    }
+    CHECK(itemId("Set step on") == 0);
+    CHECK(itemId("Set mute") == 0);
+
+    REQUIRE(history.execute("SetStepCount", 1, {{4}, {}}));
+    for (int step = 0; step < 4; ++step) {
+        store.setStepEnabled(1, step, step == 1);
+    }
+    history.clear();
+    const auto before = history.get(1);
+    const auto other = history.get(0);
+    const auto bits = [&] {
+        std::string result;
+        const auto lane = history.get(1);
+        for (int step = 0; step < 4; ++step) {
+            result += lane.document.pattern.steps.step(step).enabled ? '1' : '0';
+        }
+        return result;
+    };
+    const auto run = [&](const char* name, const char* expected) {
+        const int id = itemId(name);
+        REQUIRE(id != 0);
+        REQUIRE(selector->isItemEnabled(id));
+        selector->setSelectedId(id, juce::sendNotificationSync);
+        CHECK(selector->getSelectedId() == 0);
+        CHECK(bits() == expected);
+        CHECK(history.get(0) == other);
+        REQUIRE(history.canUndo());
+        history.undo();
+        CHECK(history.get(1) == before);
+        history.redo();
+        CHECK(bits() == expected);
+        history.undo();
+    };
+    run("Reverse", "0010");
+    run("Rotate left", "1000");
+    run("Rotate right", "0010");
+    run("Invert", "1011");
+    run("Clear lane", "0000");
+    run("Fill lane", "1111");
+
+    const int rotate = itemId("Rotate right");
+    selector->setSelectedId(rotate, juce::sendNotificationSync);
+    selector->setSelectedId(rotate, juce::sendNotificationSync);
+    CHECK(bits() == "0001");
+    history.undo();
+    CHECK(bits() == "0010");
+    history.undo();
+    CHECK(history.get(1) == before);
 }
 
 TEST_CASE("PatternStore: every edit and load is published to the audio side with a rising revision",

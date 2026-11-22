@@ -118,6 +118,27 @@ LaneParameters baseTimingParams(int stepCount, int baseTimingIndex, Subdivision 
 
 }  // namespace
 
+TEST_CASE("LaneEngine: startup rendezvous cannot schedule a gate end before the deferred onset",
+          "[M14][REQ-10-5][startup-input]") {
+    LaneFixture fixture;
+    fixture.clock.samplesPerBeat = 100.0;
+    auto params = baseTimingParams(4, 0);
+    params.gatePercent = 1;
+    const LanePattern pattern;
+    fixture.updateSettings(params, pattern);
+    fixture.engine.startTransport(0.0);
+    fixture.runUntil(0.0);
+    fixture.setHeldNote(1, 38, 90, 1);
+    const Beats onset = fixture.clock.toBeat(1);
+    fixture.runUntil(onset);
+
+    REQUIRE(fixture.output.events().size() == 1);
+    CHECK(fixture.output.events()[0].sampleOffset == 1);
+    const auto end = fixture.voices.nextScheduledEnd();
+    REQUIRE(end.has_value());
+    CHECK(end->beat == onset);
+}
+
 TEST_CASE("LaneEngine: gate percent determines the scheduled note-off beat of a triggered step",
           "[M14][REQ-6-2]") {
     LaneFixture fixture;

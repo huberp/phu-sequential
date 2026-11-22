@@ -164,6 +164,30 @@ TEST_CASE("SequencerCore: held keys at transport start drive lanes at once (REQ-
     CHECK(atStart[0].pitch == 60);
 }
 
+TEST_CASE("SequencerCore: deferred startup with a sub-sample gate ends at its onset without allocation",
+          "[SequencerCore][startup-input][REQ-10-5][REQ-17-1]") {
+    auto config = makeSingleLaneConfig();
+    config.lanes[0].baseTimingIndex = 0;
+    config.lanes[0].gatePercent = 1;
+    ScenarioRunner runner(config);
+    const std::array events{makeNoteOn(1, 1, 38, 90)};
+    auto input = makeInput(events, transportAt(0.0, 999.0), 16);
+    input.sampleRate = 1000.0;
+    OutputEventBuffer output(constants::capacity::outputEventsPerBlock);
+    std::size_t allocations = 0;
+    {
+        phu::test::AllocationGuard guard;
+        runner.core().processBlock(input, config, output);
+        allocations = guard.allocationCount();
+    }
+    CHECK(allocations == 0);
+    REQUIRE(output.events().size() >= 2);
+    CHECK(output.events()[0].kind == MidiEventKind::noteOn);
+    CHECK(output.events()[0].sampleOffset == 1);
+    CHECK(output.events()[1].kind == MidiEventKind::noteOff);
+    CHECK(output.events()[1].sampleOffset == 1);
+}
+
 // --- REQ-10-7: playhead discontinuity ---------------------------------------------------
 
 TEST_CASE("SequencerCore: backward playhead move (loop wrap) releases and re-derives position (REQ-10-7)", "[SequencerCore]") {

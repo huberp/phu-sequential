@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 #include "BlockEngine.h"
 #include "HostTransport.h"
 #include "arpeggiator/SequencerCore.h"
@@ -10,6 +11,9 @@
 
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <array>
+#include <cmath>
+#include <cstdint>
+#include <vector>
 
 using namespace phu::plugin;
 using namespace phu::arpeggiator;
@@ -36,6 +40,144 @@ TransportInfo transportStopped() {
 }
 
 }  // namespace
+
+TEST_CASE("BlockEngine: startup input timing versus later chord boundary across three lanes",
+          "[BlockEngine][REQ-10-5][REQ-4][startup-input]") {
+    const int inputOffset = GENERATE(0, 1, 2);
+    const double ppqAheadSamples = GENERATE(-0.4, 0.0, 0.4);
+    CAPTURE(inputOffset, ppqAheadSamples);
+
+    auto config = defaultSequencerConfiguration();
+    for (auto& lane : config.lanes) {
+        lane.mute = true;
+    }
+    for (int i = 0; i < 3; ++i) {
+        auto& lane = config.lanes[static_cast<std::size_t>(i)];
+        lane.mute = false;
+        lane.followIndex = 0;
+        lane.outputChannel = i + 1;
+        lane.transpose = -12 * i;
+        lane.gatePercent = 84;
+        lane.baseTimingIndex = i == 0 ? 1 : 2;  // 1/16 and 1/8
+        lane.stepCount = i == 0 ? 32 : 16;
+    }
+
+    BlockEngine engine;
+    engine.prepare();
+    std::array<int, 3> startOns{};
+    std::array<int, 3> boundaryOns{};
+    std::array<std::int64_t, 3> firstOn{-1, -1, -1};
+    constexpr std::int64_t boundarySample = 192000;  // bar 3 at 120 BPM
+    constexpr int blockSize = 256;
+    for (std::int64_t cursor = 0; cursor <= boundarySample; cursor += blockSize) {
+        juce::MidiBuffer midi;
+        if (cursor == 0) {
+            for (const int pitch : {38, 42, 45}) {
+                midi.addEvent(juce::MidiMessage::noteOn(1, pitch, static_cast<juce::uint8>(90)), inputOffset);
+            }
+        } else if (cursor == boundarySample) {
+            for (const int pitch : {38, 42, 45}) {
+                midi.addEvent(juce::MidiMessage::noteOff(1, pitch), 0);
+            }
+            for (const int pitch : {36, 40, 43}) {
+                midi.addEvent(juce::MidiMessage::noteOn(1, pitch, static_cast<juce::uint8>(90)), 0);
+            }
+        }
+        const auto transport = transportAt((static_cast<double>(cursor) + ppqAheadSamples) /
+                                          (sampleRate * 60.0 / tempo));
+        engine.process(midi, blockSize, transport, sampleRate, false, config);
+        for (const auto metadata : midi) {
+            const auto message = metadata.getMessage();
+            if (!message.isNoteOn()) {
+                continue;
+            }
+            const auto lane = static_cast<std::size_t>(message.getChannel() - 1);
+            REQUIRE(lane < firstOn.size());
+            const auto absolute = cursor + metadata.samplePosition;
+            if (firstOn[lane] < 0) {
+                firstOn[lane] = absolute;
+            }
+            if (absolute == inputOffset && inputOffset <= 1) {
+                ++startOns[lane];
+                CHECK(message.getNoteNumber() == 38 - 12 * static_cast<int>(lane));
+            }
+            if (absolute == boundarySample) {
+                ++boundaryOns[lane];
+                CHECK(message.getNoteNumber() == 36 - 12 * static_cast<int>(lane));
+            }
+        }
+    }
+
+    for (std::size_t lane = 0; lane < firstOn.size(); ++lane) {
+        CAPTURE(lane);
+        CHECK(startOns[lane] == (inputOffset <= 1 ? 1 : 0));
+        CHECK(boundaryOns[lane] == 1);
+        CHECK(firstOn[lane] == (inputOffset <= 1 ? inputOffset : (lane == 0 ? 6000 : 12000)));
+    }
+}
+
+TEST_CASE("BlockEngine: Bitwig startup chord at sample one plays the initial notes without shifting the grid",
+          "[BlockEngine][REQ-10-5][startup-input]") {
+    const int blockSize = GENERATE(1, 480, 4096);
+    CAPTURE(blockSize);
+    constexpr double traceTempo = 110.0;
+    constexpr double traceSamplesPerBeat = sampleRate * 60.0 / traceTempo;
+    auto config = defaultSequencerConfiguration();
+    for (auto& lane : config.lanes) {
+        lane.mute = true;
+    }
+    for (int i = 0; i < 3; ++i) {
+        auto& lane = config.lanes[static_cast<std::size_t>(i)];
+        lane.mute = false;
+        lane.outputChannel = i + 1;
+        lane.followIndex = 0;
+        lane.transpose = -12 * i;
+        lane.baseTimingIndex = i == 0 ? 1 : 2;
+        lane.gatePercent = 84;
+    }
+    BlockEngine engine;
+    engine.prepare();
+    std::array<std::vector<std::int64_t>, 3> ons;
+    std::array<std::vector<std::int64_t>, 3> offs;
+    for (int cursor = 0; cursor < 27000; cursor += blockSize) {
+        juce::MidiBuffer midi;
+        if (cursor == 0) {
+            midi.addEvent(juce::MidiMessage::channelPressureChange(1, 2), 0);
+        }
+        if (cursor <= 1 && cursor + blockSize > 1) {
+            for (const auto [pitch, velocity] : std::array<std::array<int, 2>, 4>{
+                     {{69, 33}, {67, 37}, {62, 35}, {50, 30}}}) {
+                midi.addEvent(juce::MidiMessage::noteOn(1, pitch, static_cast<juce::uint8>(velocity)), 1 - cursor);
+            }
+        }
+        auto transport = transportAt(static_cast<double>(cursor) / traceSamplesPerBeat);
+        transport.tempoBeatsPerMinute = traceTempo;
+        engine.process(midi, blockSize, transport, sampleRate, false, config);
+        for (const auto metadata : midi) {
+            const auto message = metadata.getMessage();
+            if (!message.isNoteOnOrOff()) {
+                continue;
+            }
+            const auto lane = static_cast<std::size_t>(message.getChannel() - 1);
+            REQUIRE(lane < ons.size());
+            CHECK(message.getNoteNumber() == 50 - 12 * static_cast<int>(lane));
+            if (message.isNoteOn()) {
+                ons[lane].push_back(cursor + metadata.samplePosition);
+            } else {
+                offs[lane].push_back(cursor + metadata.samplePosition);
+            }
+        }
+    }
+    for (std::size_t lane = 0; lane < ons.size(); ++lane) {
+        CAPTURE(lane);
+        REQUIRE(ons[lane].size() >= 2);
+        REQUIRE_FALSE(offs[lane].empty());
+        const double length = (lane == 0 ? 0.25 : 0.5) * traceSamplesPerBeat;
+        CHECK(ons[lane][0] == 1);
+        CHECK(ons[lane][1] == static_cast<std::int64_t>(std::ceil(length - 1.0e-6)));
+        CHECK(offs[lane][0] == static_cast<std::int64_t>(std::ceil(length * 0.84 - 1.0e-6)));
+    }
+}
 
 // --- BlockEngine: construction and lifecycle -----------------------------------------------
 
@@ -493,4 +635,95 @@ TEST_CASE("BlockEngine: host loop wrap inside a block restarts the lane without 
     CHECK((afterWrap[1].on && afterWrap[1].sample == loopEndSample && afterWrap[1].pitch == 38));
     CHECK((!afterWrap[2].on && afterWrap[2].sample == loopEndSample + eighth));
     CHECK((afterWrap[3].on && afterWrap[3].sample == loopEndSample + eighth));
+}
+
+TEST_CASE("BlockEngine: host loop wrap meets a chord that arrives one sample after the wrap (D-62)",
+          "[BlockEngine][D-59][D-62][REQ-10-16]") {
+    // Bitwig trace 2026-11-22: at 120 BPM the wrap falls on a block boundary and the clip sends
+    // Note-Offs at sample 0 but the new chord's Note-Ons at sample 1; at 121 BPM both share the
+    // in-block wrap sample.
+    const double bpm = GENERATE(120.0, 121.0);
+    const int onDelay = GENERATE(0, 1);
+    const bool latch = GENERATE(false, true);
+    CAPTURE(bpm, onDelay, latch);
+    const double spb = sampleRate * 60.0 / bpm;
+    constexpr int blockSize = 480;
+    constexpr double loopBeats = 16.0;
+    const double loopSamples = loopBeats * spb;
+
+    auto config = defaultSequencerConfiguration();
+    for (auto& lane : config.lanes) {
+        lane.mute = true;
+    }
+    config.lanes[0].mute = false;
+    config.lanes[0].baseTimingIndex = 2;  // 1/8
+    config.lanes[0].gatePercent = 84;
+    config.lanes[0].latch = latch;
+
+    struct In { std::int64_t sample; bool on; int pitch; };
+    std::vector<In> input;
+    std::vector<std::int64_t> wraps;
+    const std::array<int, 2> chords{38, 36};  // A, B: one note per chord is enough for lane 0
+    for (int loop = 0; loop < 2; ++loop) {
+        const auto loopStart = static_cast<std::int64_t>(std::ceil(loop * loopSamples - 1.0e-6));
+        const auto half = static_cast<std::int64_t>(std::ceil((loop * loopBeats + 8.0) * spb - 1.0e-6));
+        if (loop > 0) {
+            wraps.push_back(loopStart);
+            input.push_back({loopStart, false, chords[1]});
+        }
+        input.push_back({loopStart + (loop > 0 ? onDelay : 1), true, chords[0]});
+        input.push_back({half, false, chords[0]});
+        input.push_back({half, true, chords[1]});
+    }
+    const auto endSample = static_cast<std::int64_t>(std::ceil(1.5 * loopSamples));
+
+    BlockEngine engine;
+    engine.prepare();
+    std::vector<In> out;
+    for (std::int64_t cursor = 0; cursor < endSample; cursor += blockSize) {
+        juce::MidiBuffer midi;
+        for (const auto& event : input) {
+            if (event.sample >= cursor && event.sample < cursor + blockSize) {
+                const int offset = static_cast<int>(event.sample - cursor);
+                midi.addEvent(event.on ? juce::MidiMessage::noteOn(1, event.pitch, static_cast<juce::uint8>(90))
+                                       : juce::MidiMessage::noteOff(1, event.pitch),
+                              offset);
+            }
+        }
+        double ppq = static_cast<double>(cursor) / spb;
+        if (ppq >= loopBeats) {
+            ppq -= loopBeats;
+        }
+        auto info = transportAt(ppq);
+        info.tempoBeatsPerMinute = bpm;
+        info.isLooping = true;
+        info.loopStartBeat = 0.0;
+        info.loopEndBeat = loopBeats;
+        engine.process(midi, blockSize, info, sampleRate, false, config);
+        for (const auto metadata : midi) {
+            const auto message = metadata.getMessage();
+            if (message.isNoteOnOrOff() && message.getChannel() == 1) {
+                out.push_back({cursor + metadata.samplePosition, message.isNoteOn(), message.getNoteNumber()});
+            }
+        }
+    }
+
+    REQUIRE(wraps.size() == 1);
+    const std::int64_t wrap = wraps[0];
+    CHECK((wrap % blockSize == 0) == (bpm == 120.0));  // the trace's two wrap placements
+    const auto secondStep = wrap + static_cast<std::int64_t>(std::ceil(0.5 * spb - 1.0e-6));
+    std::vector<In> stepOne;
+    for (const auto& event : out) {
+        if (event.on && event.sample >= wrap && event.sample < secondStep) {
+            stepOne.push_back(event);
+        }
+    }
+    REQUIRE(stepOne.size() == 1);
+    CHECK(stepOne[0].sample == wrap + onDelay);
+    CHECK(stepOne[0].pitch == chords[0]);
+    bool secondStepPlayed = false;
+    for (const auto& event : out) {
+        secondStepPlayed = secondStepPlayed || (event.on && event.sample == secondStep && event.pitch == chords[0]);
+    }
+    CHECK(secondStepPlayed);
 }

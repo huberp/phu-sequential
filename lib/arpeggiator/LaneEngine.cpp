@@ -4,6 +4,7 @@
 #include "arpeggiator/BlockClock.h"
 #include "sequencing/Constants.h"
 #include "sequencing/MusicalTime.h"
+#include "sequencing/SampleConversion.h"
 #include "sequencing/StepTiming.h"
 #include "sequencing/StepData.h"
 #include "sequencing/sources/SourceSelection.h"
@@ -11,6 +12,7 @@
 #include "sequencing/VoiceRegistry.h"
 #include "sequencing/OutputEventBuffer.h"
 #include "sequencing/HeldNoteTracker.h"
+#include <algorithm>
 #include <limits>
 
 namespace phu::arpeggiator {
@@ -29,6 +31,8 @@ void LaneEngine::reset() noexcept {
     layoutPending_ = false;
     resynchronizeRequested_ = false;
     running_ = false;
+    rendezvousPending_ = false;
+    rendezvousDeferred_ = false;
     phaseOffsetBeat_ = 0;
     nextStepStart_ = NextStepStart{};
     currentStepIndex_ = -1;
@@ -132,6 +136,8 @@ bool LaneEngine::resynchronizeRequested() const noexcept {
 void LaneEngine::anchorTransportStart(Beats playheadBeat) noexcept {
     phaseOffsetBeat_ = playheadBeat;
     running_ = false;
+    rendezvousPending_ = false;
+    rendezvousDeferred_ = false;
     nextStepStart_ = NextStepStart{playheadBeat, 0, 0};
     currentStepIndex_ = -1;
 }
@@ -139,6 +145,8 @@ void LaneEngine::anchorTransportStart(Beats playheadBeat) noexcept {
 void LaneEngine::startTransport(Beats playheadBeat) noexcept {
     phaseOffsetBeat_ = playheadBeat;
     running_ = true;
+    rendezvousPending_ = true;
+    rendezvousDeferred_ = false;
     nextStepStart_ = NextStepStart{playheadBeat, 0, 0};
     currentStepIndex_ = -1;
     resynchronizeRequested_ = false;
@@ -155,6 +163,8 @@ void LaneEngine::stop(LaneContext& context) noexcept {
     context.voices.releaseOwner(owner_, 0, context.output);
     latchMemory_.reset();
     running_ = false;
+    rendezvousPending_ = false;
+    rendezvousDeferred_ = false;
     resynchronizeRequested_ = false;
 }
 
@@ -177,8 +187,10 @@ void LaneEngine::resynchronize(
 
     resynchronizeRequested_ = false;
     running_ = true;
+    rendezvousDeferred_ = false;
 
     if (committedLayout_.isEmpty()) {
+        rendezvousPending_ = false;
         nextStepStart_ = NextStepStart{std::numeric_limits<Beats>::infinity(), 0, 0};
         return;
     }
@@ -196,6 +208,8 @@ void LaneEngine::resynchronize(
         const Beats effectiveBeat = gridStart - advance;
         if (effectiveBeat >= playheadBeat - timing::beatEpsilon) {
             nextStepStart_ = NextStepStart{effectiveBeat, loopIndex, stepIndex};
+            // D-62: a step on the resync point (e.g. loop wrap) meets the host's chord rendezvous too.
+            rendezvousPending_ = effectiveBeat <= playheadBeat + timing::beatEpsilon;
             break;
         }
         ++stepIndex;
@@ -232,7 +246,7 @@ Beats LaneEngine::nextTimelineBeat() const noexcept {
     return nextStepStart_.effectiveBeat;
 }
 
-void LaneEngine::triggerStep(int stepIndex, Beats triggerBeat, LaneContext& context) noexcept {
+void LaneEngine::triggerStep(int stepIndex, Beats triggerBeat, SampleOffset offset, LaneContext& context) noexcept {
     if (requested_.mute) {
         return;
     }
@@ -271,9 +285,12 @@ void LaneEngine::triggerStep(int stepIndex, Beats triggerBeat, LaneContext& cont
     }
 
     const TickCount stepLengthTicks = committedLayout_.stepLengthTicks[slot];
-    const Beats scheduledEnd = triggerBeat + gatedLengthBeats(stepLengthTicks, requested_.gatePercent);
+    const Beats gatedEnd = triggerBeat + gatedLengthBeats(stepLengthTicks, requested_.gatePercent);
+    const Beats scheduledEnd = rendezvousDeferred_
+        ? std::max(gatedEnd, nextStepStart_.effectiveBeat)
+        : gatedEnd;
     const VoiceStartRequest request{owner_, requested_.outputChannel, pitch, static_cast<int>(*velocity), scheduledEnd};
-    (void)context.voices.startVoice(request, context.clock.toSampleOffset(triggerBeat), context.output);
+    (void)context.voices.startVoice(request, offset, context.output);
 }
 
 void LaneEngine::scheduleNextStepStart(int stepIndex, std::int64_t loopIndex) noexcept {
@@ -292,7 +309,8 @@ void LaneEngine::scheduleNextStepStart(int stepIndex, std::int64_t loopIndex) no
 }
 
 void LaneEngine::processNextTimelineEvent(LaneContext& context) noexcept {
-    const Beats triggerBeat = nextStepStart_.effectiveBeat;
+    const SampleOffset offset = context.clock.toSampleOffset(nextStepStart_.effectiveBeat);
+    const Beats triggerBeat = rendezvousDeferred_ ? rendezvousBeat_ : nextStepStart_.effectiveBeat;
     int stepIndex = nextStepStart_.stepIndex;
     std::int64_t loopIndex = nextStepStart_.loopIndex;
 
@@ -312,8 +330,10 @@ void LaneEngine::processNextTimelineEvent(LaneContext& context) noexcept {
 
         if (committedLayout_.isEmpty()) {
             // No grid: release lane voices at T, no further step starts (D-9).
-            context.voices.releaseOwner(owner_, context.clock.toSampleOffset(triggerBeat), context.output);
+            context.voices.releaseOwner(owner_, offset, context.output);
             currentStepIndex_ = -1;
+            rendezvousPending_ = false;
+            rendezvousDeferred_ = false;
             return;
         }
     }
@@ -325,12 +345,27 @@ void LaneEngine::processNextTimelineEvent(LaneContext& context) noexcept {
         const auto change = classifySourceChange(lastObservedSource_, current);
         lastObservedSource_ = current;
         if (change == SourceChange::released && !requested_.latch) {
-            context.voices.releaseOwner(owner_, context.clock.toSampleOffset(triggerBeat), context.output);
+            context.voices.releaseOwner(owner_, offset, context.output);
+        }
+    }
+
+    if (rendezvousPending_) {
+        rendezvousPending_ = false;
+        const auto source = selectSource(context.heldNotes, effectiveCommittedSelector(context));
+        if (!requested_.mute && !source.has_value()) {
+            // D-62: one sample of rendezvous, not a retrigger or a phase shift. Latch memory is
+            // only the fallback after the rendezvous, so a wrap does not replay the previous chord.
+            rendezvousBeat_ = triggerBeat;
+            nextStepStart_ = NextStepStart{
+                triggerBeat + samplesToBeats(1.0, context.clock.samplesPerBeat), loopIndex, stepIndex};
+            rendezvousDeferred_ = true;
+            return;
         }
     }
 
     currentStepIndex_ = stepIndex;
-    triggerStep(stepIndex, triggerBeat, context);
+    triggerStep(stepIndex, triggerBeat, offset, context);
+    rendezvousDeferred_ = false;
     scheduleNextStepStart(stepIndex, loopIndex);
 }
 

@@ -190,7 +190,7 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 | REQ-10-2 | 10 | Start at arbitrary PPQ (also non-integer) | M13 | T+ at 7.3 → phase offset 7.3 | #10,#11 | todo |
 | REQ-10-3 | 10 | Stop: all lanes stop, Note-Offs for all sounding notes | M17 | sounding gate 200; T- → all Offs at stop sample | #11 | todo |
 | REQ-10-4 | 10 | Without transport: silent, no internal clock | M17 | transport never started + notes held → no output | #11 | todo |
-| REQ-10-5 | 10 | Held keys at transport start drive lanes at once | M17 | NOn before T+; T+ → plays at step 1 | #11 | todo |
+| REQ-10-5 | 10 | Held keys at transport start drive lanes at once | M17 | NOn before T+; T+ → plays at step 1; existing held-key scenario remains at sample 0 with D-62 | #11 | done |
 | REQ-10-6 | 10 | Stop clears latch memory only | M14,M17 | see REQ-4.6-4/6; held-note state intact | #11 | todo |
 | REQ-10-7 | 10 | Playhead discontinuity (backward, forward beyond one buffer): Note-Offs, pending changes applied, position re-derived | M15,M17 | loop wrap 8→0; locate 4→100 → Offs; pending grid change applied; position = (playhead − offset) mod loop; offset unchanged | #11 | todo |
 | REQ-10-8 | 10 | Only start sets phase offset to map playhead to step 1 | M13 | locate keeps offset; position by formula | #10,#11 | todo |
@@ -201,6 +201,7 @@ Spec: `spec/arp-spec.md` (wins on conflict). Modules `Mnn`: `docs/architecture.m
 | REQ-10-13 | 10 | Block splitting invariance: same absolute output for any block size | M17 | run same scenario with block sizes 32…4096 | #11 | todo |
 | REQ-10-14 | 10 | Beats only, never samples (core stores beats) | M01–M17 | `n/t` as test; covered by REQ-10-10/-13 | #5 | n/t: design rule, indirectly verified |
 | REQ-10-15 | 10 (D-59) | Host loop wrap inside a host block: discontinuity at the wrap sample, step 1 of the new pass not cut | M04, M19 | loop [0,16), 4096-sample blocks, wrap at offset 3072 → On at wrap, next Off/On one step later; `loopWrapSampleOffset` cases; loop points read only while looping | — | done |
+| REQ-10-16 | 10 (D-62) | Empty-source startup rendezvous lasts one sample only, preserving phase and gate | M14, M17, M19 | Input at 0/1/2 samples, three lanes, PPQ ±0.4 samples; Bitwig startup input at 110 BPM / 48 kHz, blocks 1/480/4096; initial On at 1, later On and Off on original grid; sub-sample gate ends at onset, no RT allocation; host loop wrap at 120/121 BPM (block-boundary vs in-block wrap) with chord Ons at the wrap or one sample later, latch off/on: step 1 plays the new chord at the arrival sample | — | done |
 
 ## §11 Live changes
 

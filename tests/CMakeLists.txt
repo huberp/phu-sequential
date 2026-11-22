@@ -80,6 +80,7 @@ add_executable(SequentialAdapterTests
     ../src/StateSerializer.cpp
     ../src/LaneEditHistory.cpp
     ../src/PresetManager.cpp
+    ../src/editor/LaneControlStrip.cpp
 )
 
 target_include_directories(SequentialAdapterTests PRIVATE

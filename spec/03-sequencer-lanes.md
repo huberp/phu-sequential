@@ -22,9 +22,13 @@ The user selects a MIDI channel from 1 to 16. The lane follows the most recently
 
 A pitch change of the input (new note or re-sorting according to Section 4.2) is adopted only at the next step start of the respective lane. A running step plays its note until its scheduled end. A release of the source (the source no longer delivers a note) takes precedence over this quantization and stops the lane immediately according to Section 9.2.
 
+The one-sample startup input rendezvous in Section 10 is the sole exception: an empty-source lane can use input on the sample immediately following a restart point (transport start, or a loop wrap/resync that lands on a step start) for that step, without resetting its phase or retriggering an already consumed step.
+
 ### 4.5 Position During Silence
 
 Lanes are always free-running. Silence means: the lane's source delivers no note (chord empty, index outside the chord size, or no note held on the channel). The step position continues during silence; on resumption the lane continues at the advanced position (Section 10). Chord changes while notes are held (legato transitions and re-sortings) never affect the position. Mute is not silence in this sense: the step position continues during mute. There is no reset-on-input mode.
+
+Only consumption of the first empty-source step at transport start can wait one sample (Section 10); later silence never waits for input.
 
 ### 4.6 Latch Mode
 

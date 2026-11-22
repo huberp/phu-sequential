@@ -12,6 +12,18 @@ namespace {
 
 using parameter_ids::LaneParameter;
 
+enum LaneCommandItem {
+    reverseSteps = 1,
+    rotateLeft,
+    rotateRight,
+    invertSteps,
+    clearLane,
+    fillLane,
+    fillRandom,
+    arithmeticSequence,
+    euclideanPattern
+};
+
 juce::RangedAudioParameter& parameterOf(juce::AudioProcessorValueTreeState& apvts, int lane, LaneParameter parameter)
 {
     return *apvts.getParameter(parameter_ids::laneParameterId(lane, parameter));
@@ -94,10 +106,65 @@ LaneControlStrip::LaneControlStrip(juce::AudioProcessorValueTreeState& apvts, La
 {
     for (auto* component : std::initializer_list<juce::Component*>{
              &mute_, &latch_, &inputMode_, &followIndex_, &followChannel_, &outputChannel_, &transpose_, &gate_,
-             &timingBase_, &timingGrid_, &baseTiming_, &subdivision_, &swing_, &stepCount_, &velocityMode_,
+             &timingBase_, &timingGrid_, &laneCommands_, &baseTiming_, &subdivision_, &swing_, &stepCount_, &velocityMode_,
              &colorPicker_}) {
         parent.addAndMakeVisible(*component);
     }
+    laneCommands_.setName("Lane commands");
+    laneCommands_.setTextWhenNothingSelected("Lane commands");
+    laneCommands_.addItem("Reverse", reverseSteps);
+    laneCommands_.addItem("Rotate left", rotateLeft);
+    laneCommands_.addItem("Rotate right", rotateRight);
+    laneCommands_.addItem("Invert", invertSteps);
+    laneCommands_.addItem("Clear lane", clearLane);
+    laneCommands_.addItem("Fill lane", fillLane);
+    laneCommands_.addSeparator();
+    laneCommands_.addItem("Fill random...", fillRandom);
+    laneCommands_.addItem("Arithmetic sequence...", arithmeticSequence);
+    laneCommands_.addItem("Euclidean pattern...", euclideanPattern);
+    for (const int item : {fillRandom, arithmeticSequence, euclideanPattern}) {
+        laneCommands_.setItemEnabled(item, false);
+    }
+    laneCommands_.onChange = [this, &edits] {
+        const int selected = laneCommands_.getSelectedId();
+        const bool enabled = laneCommands_.isItemEnabled(selected);
+        laneCommands_.setSelectedId(0, juce::dontSendNotification);
+        if (!enabled) {
+            return;
+        }
+        const int lane = laneIndex_;
+        switch (selected) {
+        case reverseSteps:
+            edits.execute([lane](arpeggiator::LaneStateAccess& access) {
+                return std::make_unique<arpeggiator::ReverseStepsCommand>(access, lane);
+            });
+            break;
+        case rotateLeft:
+        case rotateRight:
+            edits.execute([lane, selected](arpeggiator::LaneStateAccess& access) {
+                return std::make_unique<arpeggiator::RotateStepsCommand>(access, lane, selected == rotateLeft ? -1 : 1);
+            });
+            break;
+        case invertSteps:
+            edits.execute([lane](arpeggiator::LaneStateAccess& access) {
+                return std::make_unique<arpeggiator::InvertStepsCommand>(access, lane);
+            });
+            break;
+        case clearLane:
+            edits.execute([lane](arpeggiator::LaneStateAccess& access) {
+                return std::make_unique<arpeggiator::ClearLaneCommand>(access, lane);
+            });
+            break;
+        case fillLane:
+            edits.execute([lane](arpeggiator::LaneStateAccess& access) {
+                return std::make_unique<arpeggiator::FillLaneCommand>(access, lane);
+            });
+            break;
+        default:
+            jassertfalse;
+            break;
+        }
+    };
     styleToggle(mute_);
     styleToggle(latch_);
     mute_.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xffc0392b));
@@ -165,6 +232,8 @@ void LaneControlStrip::layOut(const layout::LaneRowRegions& regions)
     auto source = layout::splitHorizontally(sidebar.removeFromTop(layout::controlHeight), {1, 1});
     timingBase_.setBounds(source[0]);
     timingGrid_.setBounds(source[1]);
+    sidebar.removeFromTop(layout::gap);
+    laneCommands_.setBounds(sidebar.removeFromTop(layout::controlHeight));
 
     auto row1 = layout::splitHorizontally(regions.controlRow1, {3, 2, 2, 2, 2});
     inputMode_.setBounds(row1[0]);

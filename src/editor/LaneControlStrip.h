@@ -50,6 +50,7 @@ private:
     juce::Slider gate_;
     juce::TextButton timingBase_{"Base"};
     juce::TextButton timingGrid_{"Grid"};
+    juce::ComboBox laneCommands_;
     juce::ComboBox baseTiming_;
     juce::ComboBox subdivision_;
     juce::Slider swing_;

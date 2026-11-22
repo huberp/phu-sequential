@@ -178,6 +178,10 @@ private:
     int currentStepIndex_ = -1;
     std::optional<SourceNote> lastObservedSource_;
     std::optional<SourceNote> latchMemory_;
+    bool rendezvousPending_ = false;           // one source check at a restart point (D-62)
+    bool rendezvousDeferred_ = false;
+    Beats rendezvousBeat_ = 0;                 // musical beat of the deferred step
+    bool transportStartDeferred_ = false;      // first trigger emitted one sample after its musical start
 
     // Implementation-detail private helpers (not part of this sketch, no effect on the public
     // interface or persisted state): effectiveCommittedSelector folds the always-immediate (D-24)
@@ -204,11 +208,13 @@ Behavior (normative). Notation: `g_k` = unswung grid start of step *k*, `e_k` = 
    4. Step data = `pattern_->steps.step(k)`, or `defaultStepData()` if masked: `discardedAtRevision_[k] != 0 && pattern_->stepEditRevision[k] <= discardedAtRevision_[k]` (D-32). `k` is always < the committed step count, so slots beyond it are never read (I-1). If `!enabled` → nothing.
    5. `velocity = computeOutputVelocity(requested_.velocityMode, value[mode], note.velocity)`; none → nothing (§7.2).
    6. `pitch = note.pitch + transpose`; outside 0..127 → nothing (§8, no clamping).
-   7. `voices.startVoice({owner_, outputChannel, pitch, velocity, T + gatedLengthBeats(len(k), gate)}, clock.toSampleOffset(T), output)`.
+   7. `voices.startVoice({owner_, outputChannel, pitch, velocity, T + gatedLengthBeats(len(k), gate)}, clock.toSampleOffset(T), output)`. D-62: for a deferred step, the explicit onset offset uses the rendezvous beat, while `T` remains the original musical start; clamp the end beat to at least the rendezvous beat.
 3. **Source change** (`onHeldNotesChanged`): `current = selectSource(...)`; `change = classifySourceChange(lastObservedSource_, current)`; store. If not running → return. If latch on, not muted and `current` → `latchMemory_ = current` (D-22). If `change == released` and latch off → `releaseOwner(owner_, offset)` (§4.4, §9.2) — immediately, also if the release falls between a swung step start `e_k` and its grid start `g_k` (the swung note belongs to step *k* and is released like any sounding lane note). `pitchChanged`/`started` → nothing now; adopted at the next step start (§4.2, §4.4, D-13); a source appearing after `e_k` (even before `g_k`) waits for step k+1.
 4. **updateSettings** (at block start, offset 0, after the clock is known): mute off→on: release lane voices, clear latch memory. latch on→off: release lane voices, clear latch memory (§4.6). latch off→on: `latchMemory_ = current source` if any. Selector differs from committed → pending (if not running: commit immediately, D-18). Requested layout differs from committed → pending (if not running: commit immediately; if running and committed layout is empty: commit and set `resynchronizeRequested_`, executed by the core after the transport transition, D-9, §5.2 step 4).
 5. Muted lanes keep processing step starts (position runs, pending changes commit, §4.5).
 6. **Transport start / loop restart / swing**: `startTransport(p)` sets `nextStepStart_ = {p, 0, 0}`; nothing before step 0 is ever scheduled, so no swung step precedes the playhead at transport start. Loop restart is step 0 of the next loop at its unswung grid start (D-4). Pending changes take effect at the next *effective* step start, so a change requested after `e_k` but before `g_k` waits for step k+1.
+
+7. **Input rendezvous at a restart point (D-62, §10)**: `startTransport` sets `rendezvousPending_`; `resynchronize` sets it only when the first step found starts within `beatEpsilon` of its playhead (loop wrap, locate, bypass resume, requested resync). After that step's commits, if an unmuted lane has no selected source (latch memory does not count), clear pending, set deferred, remember the musical beat in `rendezvousBeat_`, schedule one extra timeline item at `T + 1 / samplesPerBeat` (same step/loop indices), and return without triggering or advancing. This is done once only. At that item, input at the same sample is processed first (D-14.4); trigger (latch memory is the fallback) or consume the step, clear deferred, and schedule the next step from the unchanged phase. `triggerStep` accepts an explicit onset offset separately from its musical trigger beat so the original gate deadline is retained (clamped to the deferred onset for sub-sample gates). `reset`, `stop` and `anchorTransportStart` (bypass) clear both flags. No ordinary step acquires a rendezvous.
 
 Note-Off guarantee (§9.3): lane voices always carry a finite scheduled end in the registry; grid/step-count/timing-source changes never drop them (they end at their scheduled beat); stop/mute/latch-end/discontinuity/bypass release them explicitly.
 
