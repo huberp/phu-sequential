@@ -1,0 +1,32 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="$(Product)" Manufacturer="$(Publisher)" Version="$(Version)"
+           UpgradeCode="b3417c0b-8ca3-44fa-9414-95469ae11271" Scope="perMachine">
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version is already installed." />
+    <StandardDirectory Id="CommonFiles64Folder">
+      <Directory Id="Vst3Folder" Name="VST3">
+        <Directory Id="VendorFolder" Name="PHUplugins">
+          <Component>
+            <File Source="$(Bundle)\Contents\x86_64-win\$(Product).vst3" />
+          </Component>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+    <Property Id="VCRUNTIME" Secure="yes">
+      <DirectorySearch Id="FindVCRuntime" Path="[System64Folder]" Depth="0">
+        <FileSearch Name="vcruntime140.dll" MinVersion="$(RuntimeVersion)" />
+      </DirectorySearch>
+    </Property>
+    <Property Id="VCRUNTIME1" Secure="yes">
+      <DirectorySearch Id="FindVCRuntime1" Path="[System64Folder]" Depth="0">
+        <FileSearch Name="vcruntime140_1.dll" MinVersion="$(RuntimeVersion)" />
+      </DirectorySearch>
+    </Property>
+    <Property Id="MSVCP" Secure="yes">
+      <DirectorySearch Id="FindMsvcp" Path="[System64Folder]" Depth="0">
+        <FileSearch Name="msvcp140.dll" MinVersion="$(RuntimeVersion)" />
+      </DirectorySearch>
+    </Property>
+    <Launch Condition="REMOVE = &quot;ALL&quot; OR (VCRUNTIME AND VCRUNTIME1 AND MSVCP)"
+            Message="The required Visual C++ runtime is not available. Installation cannot continue." />
+  </Package>
+</Wix>

@@ -37,6 +37,7 @@ End-user documentation lives in [USER_GUIDE.md](USER_GUIDE.md) (rendered to `USE
 | §10 | [Design Decisions](architecture/10-design-decisions.md) | D-1 through D-57 index | ~12 KB |
 | §11 | [Testing Architecture](architecture/11-testing-architecture.md) | Testing architecture (§18) | ~3.4 KB |
 | §12 | [Spec Ambiguities](architecture/12-spec-ambiguities.md) | A-n ambiguities | ~9.7 KB |
+| §13 | [Installer Design](architecture/13-installers.md) | Planned reusable packaging and release design (spec §25) | |
 
 ---
 

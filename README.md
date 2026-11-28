@@ -12,6 +12,12 @@ A VST3 MIDI effect arpeggiator sequencer. See [spec/README.md](spec/README.md) f
 - For macOS: Xcode Command Line Tools
 - For Windows: Visual Studio 2022 with C++ workload
 
+Windows installer builds use WiX. Its source is MS-RL-licensed; official WiX v7
+binaries have additional [maintenance-fee terms](https://docs.firegiant.com/wix/osmf/).
+Donationware is not automatically exempt. See the
+[installer design](docs/architecture/13-installers.md#135-wix-license-and-maintenance)
+for conditions and redistribution obligations. Installer release integration is not yet implemented.
+
 ## Configure
 
 ```bash
@@ -37,6 +43,30 @@ cmake --build --preset macos-arm64-release-build
 # Windows x64
 cmake --build --preset windows-x64-vst3-release-build
 ```
+
+### Local Windows installer
+
+The separate packaging project requires the Windows x64 Release plugin build,
+WiX 7.0.1 with its BootstrapperApplications and Util extensions, and the pinned
+Microsoft x64 redistributable. Review and accept any applicable WiX terms
+yourself before building. Download the
+[redistributable](https://download.visualstudio.microsoft.com/download/pr/78d061c5-9ef3-42ab-98ed-3309d1095dc4/9C02C9ED120F671B900E6B9471D890E3B2414117A7E53F4AE2E855466FA2B7C9/VC_redist.x64.exe);
+the build checks its SHA-256, Microsoft signature and version.
+
+```powershell
+cmake -S packaging --preset installer-windows-x64 `
+  "-DPHU_RELEASE_TAG=v0.1.0" "-DPHU_REDIST=C:\path\to\VC_redist.x64.exe"
+cmake --build build\installer-windows-x64 --config Release
+```
+
+The release tag's numeric version must match the built plugin. The output is
+`build\installer-windows-x64\phu-sequential-v0.1.0-windows-x64.exe`.
+This is a local unsigned build, not a published release. It does not remove
+older manually installed copies; remove unwanted duplicates yourself.
+It installs a single VST3 file under `VST3\PHUplugins`; Steinberg has deprecated
+this format, so some hosts may not recognize it.
+Before distribution, fulfill the WiX and Microsoft redistribution obligations
+described in the installer design.
 
 ## Test
 

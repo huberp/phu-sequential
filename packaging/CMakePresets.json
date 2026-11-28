@@ -1,0 +1,23 @@
+{
+  "version": 5,
+  "include": ["../CMakePresets.json"],
+  "configurePresets": [
+    {
+      "name": "installer-windows-x64",
+      "displayName": "Windows x64 installer",
+      "inherits": ["os-windows-x64"],
+      "binaryDir": "${sourceDir}/../build/installer-windows-x64",
+      "cacheVariables": {
+        "PHU_PLUGIN_BUILD": "${sourceDir}/../build/windows-x64-vst3-release",
+        "PHU_RELEASE_TAG": "v0.1.0"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "installer-windows-x64-build",
+      "configurePreset": "installer-windows-x64",
+      "configuration": "Release"
+    }
+  ]
+}
