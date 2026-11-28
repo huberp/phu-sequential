@@ -1,237 +1,154 @@
 # 13. Installer Design
 
-**Status:** planned, not implemented. Implements [spec §25](../../spec/23-installers.md).
-The spec governs behavior. This design starts with phu-sequential but keeps the
-packaging code independent of its DSP and UI so other JUCE plugins can reuse it.
+**Status:** local Windows packaging implemented; installer behavior has not been
+tested. Other platforms and release integration are planned. Implements
+[spec §25](../../spec/23-installers.md).
+The spec governs behavior. Keep the packaging small and reusable for other PHU
+plugins without introducing a separate framework.
 
-## 13.1 Boundaries and Inputs
+## 13.1 Scope and Build Locations
 
-Use one small CMake packaging module and platform-specific packaging files:
+- Use a separate CMake packaging project and platform-specific packaging files;
+  do not add installer logic to the existing application build. Pass it the
+  already-built bundles and release version explicitly. Separate product name,
+  stable package identities and guide location from shared logic. Other
+  repositories are not changed.
+- Use the existing [release workflow](../../.github/workflows/release.yml) and
+  its reusable platform workflows. Build Windows, macOS and Linux packages on
+  their respective GitHub-hosted runners; use compatible Linux distribution
+  environments on those runners.
+- Local packaging is supported only for the host OS and architecture. Do not
+  add cross-build tooling for local installer builds.
+- Do not add automated installer tests, mandatory manual installer checks or a
+  separate installer-test approval gate for now. Existing plugin tests and
+  validation in the build workflows remain in place. Building a package is not
+  proof of successful installation or host discovery.
 
-| Planned location | Responsibility |
-|---|---|
-| `cmake/PhuPackaging.cmake` | Product inputs, bundle staging, CPack configuration |
-| `packaging/Product.cmake` | Product identity and release target/baseline configuration |
-| `packaging/windows/` | NSIS script and runtime configuration |
-| `packaging/macos/` | Minimal productbuild resources, only if needed |
-| `packaging/linux/` | Distro build and package verification helpers, only if needed |
-| `.github/workflows/` | Build, validate, package and publish release assets |
+## 13.2 Packaging
 
-No separate shared repository, framework, installer application or plugin code
-changes are needed. Initially copy the small packaging module and platform files
-to another repository; extract a shared package only when actual reuse justifies it.
+The separate packaging project consumes complete, already-built JUCE bundles.
+The caller supplies the application build directory and builds the required
+plugin targets before packaging. Windows WiX packages the x64 binary from the bundle;
+use CMake install rules for staging where appropriate on other platforms.
+Do not install into system plugin folders during a build. Use CPack where
+appropriate.
 
-Expose `phu_configure_packaging(TARGET <shared-target> PACKAGE_ID <id>
-PRODUCT_NAME <name> VENDOR <name> FORMATS <formats...> VERSION <tag>
-GUIDE_URL <url> LEGACY_PATHS <paths...>)`. Enable it only for packaging builds.
-The stable, platform-valid ID is product-specific and does not include a version
-or architecture; use it for the Windows uninstall key, macOS package receipt
-and Linux package names. Legacy paths are optional and limited to known product
-bundle locations expressed relative to approved OS-resolved plugin roots.
-Require valid inputs and fail explicitly.
+The local Windows packaging entry point is `packaging/CMakeLists.txt` and its
+`installer-windows-x64` preset. It accepts `PHU_PLUGIN_BUILD`,
+`PHU_RELEASE_TAG` and `PHU_REDIST`; it reads the VST3 bundle and compiler
+metadata from the application build and checks the plugin version and pinned
+runtime before invoking WiX. See the [build instructions](../../README.md#local-windows-installer).
+No application CMake files or release workflows are changed.
 
-Derive format targets and bundle names from JUCE target metadata, not duplicated
-paths. For phu-sequential these are `phu-sequential_VST3` and, on macOS,
-`phu-sequential_AU`.
+On Windows, Burn checks the runtime registry to decide whether to offer the
+redistributable. Afterward, the MSI independently checks the versions of the
+x64 runtime DLLs before installing; consent alone does not satisfy this check.
 
-After `juce_add_plugin`, register install rules for entire built bundles using
-JUCE's `JUCE_PLUGIN_ARTEFACT_FILE` property on each format target, accounting
-for configuration-specific generator expressions. Do not select the first
-recursive `*.vst3` match. `install()` does not build targets: build and validate
-the requested format targets before packaging. Use relative install destinations
-and isolated staging roots, never write into host plugin folders during a build.
-Use generator-specific CPack configuration for the different package prefixes.
-Handle all CMake generators, including multi-configuration Visual Studio/Xcode.
+For CMake-based packaging, reuse the existing OS, architecture and build-type
+preset mixins where practical. Add opt-in installer configure/build presets only
+where they simplify local and runner builds; avoid duplicating application settings.
+Use separate build directories when packaging configuration or Linux baselines
+would otherwise conflict. Keep ordinary application presets unchanged. CPack
+package presets are optional: they require preset schema version 6 or later
+(the current file uses version 5), so upgrade the schema only if useful.
+Presets must not imply support for local cross-building.
 
-## 13.2 Platform Packaging
+| Platform | Package | Installed bundles |
+|---|---|---|
+| Windows x64 | WiX Burn `.exe`, containing the plugin MSI and VC++ runtime | Common Files `VST3\PHUplugins\phu-sequential.vst3` |
+| macOS x64, arm64 | CPack productbuild `.pkg` | `/Library/Audio/Plug-Ins/VST3/PHU/` and `/Library/Audio/Plug-Ins/Components/` |
+| Linux x64, arm64 | CPack DEB and RPM, plus portable ZIP | DEB: `/usr/lib/vst3/PHU/`; RPM: `/usr/lib64/vst3/PHU/` |
 
-| Platform | Build output and install mechanism |
-|---|---|
-| Windows x64 | One NSIS `.exe`; CMake stages the VST3 bundle, then NSIS installs it. |
-| macOS x64, arm64 | One CPack `productbuild` `.pkg` per architecture containing both VST3 and AU. |
-| Linux x64, arm64 | CPack DEB and RPM packages plus a portable ZIP per architecture. |
+**Windows.** Use WiX's standard bootstrapper where it meets the requirements;
+keep any required custom UI or logic minimal. Resolve 64-bit Common Files through
+Windows. The flat single-file VST3 format is deprecated by Steinberg and may not
+be recognized by all hosts; bundle resources are not installed. Bundle the
+official x64 VC++ redistributable for offline installation,
+pin and verify its download, and check its version against the compiler's runtime
+requirement. Detect an existing compatible or newer runtime. If it is missing or
+too old, ask permission before installing it; declining cancels the plugin
+installation. Report runtime failures and reboot requirements, and include the
+dependency outcome in the final summary. Do not uninstall a shared runtime.
+The initial install page identifies the plugin and destination, shows the
+runtime status and provides Install and Cancel controls.
+Use stable WiX bundle and MSI upgrade identities, and let Windows Installer
+manage product files and uninstall registration.
 
-Use CPack for native packages where it fits. Use a short standalone NSIS script
-rather than copying CPack's general-purpose NSIS template: the plugin goes in a
-shared VST3 directory while the uninstaller and registry entry are product-owned.
-Keep that script generic and feed it the staged bundle and product inputs.
-No custom Linux installer UI or background dependency downloader is introduced.
+**macOS.** Install both formats together using stable package identities and
+bundle replacement semantics. The native conclusion identifies the formats and
+states that no additional dependencies were installed. Document removal of the
+product bundles and receipt separately; forgetting a receipt does not remove files.
 
-**Windows.** Resolve the 64-bit Common Files folder through Windows/NSIS and
-install the VST3 bundle under `VST3\PHU\`. Store the uninstaller under a
-product-owned directory outside the shared VST3 tree and register one stable
-Apps & Features entry. Do not recursively remove the shared `PHU` folder.
+**Linux.** Build against compatible Debian stable, Ubuntu LTS and Fedora
+baselines for each supported architecture. Use distribution tooling to derive
+dependencies from the built plugin and include necessary dynamically loaded
+libraries. Produce the portable ZIP from a documented compatible baseline;
+document manual installation to `~/.vst3/PHU/` and its compatibility limits.
+Package managers handle installation, removal, dependencies and their own UI.
 
-Before writing product files, read the installed x64 VC runtime's `Installed`
-and numeric `Major`, `Minor`, `Bld`, `Rbld` values in the correct registry view.
-Compare against the minimum runtime for the actual MSVC toolset. At packaging,
-obtain the official x64 redistributable at a pinned version, verify its hash and
-Microsoft signature, check it meets that minimum, and embed it. Updating the
-pin is an explicit maintenance change; do not download on the user's machine.
-Check redistribution terms for the build environment.
+All installers are initially unsigned, and macOS packages are not notarized.
+Document SmartScreen and Gatekeeper limitations and safe user instructions.
 
-If the runtime is missing or too old, explain the prerequisite and ask permission;
-No cancels before product installation. Yes runs the embedded redistributable with
-`/install /passive /norestart`, waits for completion and rechecks the registry.
-Treat a newer runtime as already satisfied. Handle success, reboot-required,
-failure and cancellation distinctly; if availability cannot be established, stop
-and report the error and log location. If a reboot is required, report it and do
-not claim the plugin is ready until that requirement is met. Show a final wizard
-summary with product path, runtime already present/installed, and reboot status;
-on failure or cancellation show the corresponding result, not success.
+## 13.3 Lifecycle and Existing Copies
 
-**macOS.** Stage relative paths under `/` so productbuild installs VST3 to
-`Library/Audio/Plug-Ins/VST3/PHU/` and AU directly to
-`Library/Audio/Plug-Ins/Components/`. Use stable package identifiers and native
-bundle replacement semantics; test that old bundle contents are replaced on
-upgrade. Supply a productbuild distribution conclusion resource identifying both
-formats and stating that no additional dependencies were installed. The `.pkg`
-and bundles are initially unsigned and unnotarized; document Gatekeeper's
-limitations without implying a trust warning will disappear. Document removing
-only this product's bundles and then its receipt; `pkgutil --forget` does not
-delete payload files.
+Reinstall and upgrade replace the product's installer-owned files without
+duplicates or obsolete files. Removal must preserve presets, other products and
+shared dependencies. Fail clearly on conflicts and errors.
 
-**Linux.** Build DEBs in compatible Debian/Ubuntu environments and RPMs in a
-compatible Fedora environment, for each supported architecture. Use distro
-dependency tooling on the actual VST3 ELF and include dynamically loaded runtime
-libraries that automatic analysis misses. Inspect package metadata and test
-dependency resolution; do not translate package names between distros by guesswork.
-Use `/usr/lib/vst3/PHU/` for DEB and `/usr/lib64/vst3/PHU/` for Fedora RPM.
-Create the portable ZIP from a documented compatible build, with the bundle at
-its root; document copying it to `~/.vst3/PHU/` and any runtime prerequisites.
-Package managers own upgrades/removal and dependency decisions. Document
-`apt install ./<package>.deb` and `dnf install ./<package>.rpm`; do not use
-unattended flags in user instructions. Native frontend prompts and final
-transaction summaries vary; neither is guaranteed and no wrapper is provided.
+Do not detect or remove legacy manual copies automatically. Document how to
+identify and remove them manually and warn about duplicate discovery.
 
-## 13.3 Lifecycle and Safety
+## 13.4 Versioning and Release Workflow
 
-- Keep each product's package and uninstall identities stable across releases.
-  A reinstall or upgrade replaces only its bundle(s), without duplicates or
-  obsolete files. Never remove presets, other products or shared runtimes.
-  Fail clearly on file locks, permissions or package conflicts; preserve the
-  previous working install where possible and report any incomplete state.
-- On Windows, check the exact product-specific legacy locations from the old
-  release instructions. Show detected paths and offer removal only with explicit
-  confirmation and only when they can be established as unmanaged. Defer removal
-  until the new product installation succeeds. Never delete a package-manager-owned
-  or uncertain copy; explain manual cleanup instead.
-  Refuse to overwrite an existing destination of uncertain ownership. Resolve
-  paths safely and do not follow links outside the expected bundle.
-- On macOS and Linux, do not delete legacy user copies or prompt from package
-  scripts. The guide explains how to locate duplicates and remove only the
-  intended product. Windows decline or cancellation leaves existing copies alone.
-- The final Windows summary reports cleanup and dependency outcomes. Native macOS
-  reports successful installation and no extra dependencies. Linux delegates
-  reporting to its package manager, as specified above.
+Use the release tag for plugin and package identity. Accept `vM.m.p` and
+`vM.m.p-rcN`, with no leading zeroes except `0`, `M` and `m` in 0..255,
+`p` in 0..64, and `N` in 1..998. Reject unsupported tags before packaging.
+For Windows MSI use `M.m.(p*1000+N)` for an RC and `M.m.(p*1000+999)`
+for a final release: MSI compares only three fields, with limits 255, 255 and
+65535. Use the same numeric mapping for the macOS receipt, and
+`M.m.p~rcN` / `M.m.p` for Linux. Preserve the full tag in asset names and
+user-visible release information; use `M.m.p` as the JUCE plugin version.
+Keep package upgrade identities stable across releases.
 
-## 13.4 Versioning and Releases
+The existing release workflow orchestrates the platform builds, guide generation
+and publication. Extend the existing reusable build workflows with opt-in
+packaging; ordinary CI remains independent of packaging tools. Upload uniquely
+named assets per OS, architecture, format and Linux baseline. Publish only after
+the required build jobs succeed and all expected assets exist. Publish the PDF
+guide as a separate release asset or otherwise make it readily accessible.
+Pass release inputs as data and grant write permissions only where needed.
 
-Use the release tag as the one source of release identity, not the current
-hard-coded `project()` version. Initially accept `vM.m.p` and `vM.m.p-rcN`,
-with non-negative numeric components `M`, `m`, `p` at most 9999, no leading
-zeroes except `0`, and `N` in 1..998. Reject other tags before producing or
-publishing assets, with an actionable error. Preserve the full tag in the
-asset filename and user-visible package metadata.
+## 13.5 WiX License and Maintenance
 
-For native ordering, use `M.m.p~rcN` for DEB/RPM prereleases and `M.m.p` for
-final releases. For macOS package receipts use the numeric version
-`M.m.(p*1000+N)` for an RC and `M.m.(p*1000+999)` for final. Windows stores
-the full tag as the displayed version and compares `(M,m,p,N)` for RCs and
-`(M,m,p,999)` for finals before allowing an upgrade; reject downgrades.
-Supply `M.m.p` before CMake's `project()` call and use it for JUCE's numeric
-plugin version, retaining the existing version as the non-release default. Test
-the actual native comparators and replacement behavior, including RC-to-final;
-if any platform cannot represent or order a version correctly, fail the release.
-Package metadata, asset name and plugin version must all refer to the same tag.
+WiX source is under the [Microsoft Reciprocal License (MS-RL)](https://github.com/wixtoolset/wix/blob/v7.0.1/LICENSE.TXT).
+It permits royalty-free commercial use, including donationware. However, that
+does **not** make every official binary release unconditionally free:
 
-Generate the PDF guide before packaging or publish it as a clearly linked
-separate release asset. Update release notes and the user guide for native
-installation, removal, unsigned warnings and rescan. Do not inject a PDF into
-native packages after they are built.
+- The [WiX v7.0.1 binary EULA](https://github.com/wixtoolset/wix/blob/v7.0.1/OSMFEULA.txt)
+  exempts users with annual gross revenue below US$10,000. It requires a
+  maintenance fee for covered revenue-generating use at or above that amount,
+  unless another stated exemption applies. Confirm applicability before using
+  the official binaries; donationware alone does not establish an exemption.
+  The v6 EULA differs, so check the terms of the exact selected version.
+- WiX v7 requires explicit EULA acceptance, including in CI. Do not configure
+  acceptance before the maintainer has reviewed the applicable terms. Pin the
+  chosen tool and extension versions; recheck their terms when upgrading.
+- If distributing WiX code, including code embedded in a Burn bootstrapper,
+  retain its notices and provide recipients the corresponding source and a copy
+  of MS-RL as required by the license. Include the relevant notices and license
+  with the distribution, and make the matching WiX source available to recipients.
+  Independent product files do not automatically become MS-RL-licensed.
+  Review the actual tool and extensions used before publishing.
+- MS-RL grants no trademark license and disclaims warranties; patent-retaliation
+  and other conditions also apply. The VC++ redistributable has separate Microsoft
+  redistribution terms. This summary is not legal advice.
 
-Replace the five-ZIP assumption in `release.yml` with an explicit expected-asset
-manifest. Name assets with product, complete tag, OS, architecture, format and,
-where needed, Linux distro/baseline. Build DEB per Debian/Ubuntu baseline and
-RPM per Fedora baseline when necessary; no overwriting identically named assets.
-Use the portable ZIP per architecture from a documented compatible baseline.
-Publish only when all required assets, package checks and validation succeed.
-Keep ordinary CI builds independent of packaging tools.
+If the applicable WiX binary terms are not free for this project, use a
+compliant MS-RL source build or revisit the Windows tool choice rather than
+assuming an exemption or accepting a fee.
 
-### Release workflow structure
-
-Keep [release.yml](../../.github/workflows/release.yml) as the orchestrator and
-the existing reusable platform workflows as the build entry points:
-
-1. **Prepare:** validate the tag, resolve its commit SHA, and produce the
-   platform/architecture/baseline matrices and expected asset names from one
-   release configuration. The PDF guide is generated once. Validate before
-   creating a tag in a manual run.
-2. **Build and package:** call the Windows, macOS and Linux reusable workflows
-   with matrix inputs, the resolved SHA and version. Each checks out that SHA,
-   builds, tests, packages via the shared CMake/platform logic, validates its
-   packages and uploads uniquely named assets plus test results. Linux matrix
-   entries specify the distro baseline and architecture; designate exactly one
-   portable ZIP producer per architecture. Do not copy packaging commands into
-   the orchestrator or rebuild a different binary for packaging.
-3. **Verify:** download the artifacts from this run, compare the exact set with
-   the expected manifest, reject missing, duplicate or unexpected assets, and
-   verify package identity and test results. Generate a SHA-256 manifest for
-   the validated release assets and expose it with the artifacts for review.
-4. **Approve and publish:** after verification, require a protected GitHub
-   environment approval before publication. Reviewers download those artifacts,
-   perform and record the required manual DAW checks against their SHA-256
-   hashes, and approve only if all required results pass. Publish exactly the
-   verified artifacts and checksum manifest; do not rebuild or alter them after
-   approval. A rerun that produces different assets requires fresh validation
-   and approval. Configure the environment and reviewers as a release
-   prerequisite; if the protection is unavailable or not configured, do not
-   publish until an equivalent enforced gate is established.
-
-Check the environment's required-reviewer configuration before entering the
-approval job, and verify an approval for this run before publishing; fail
-closed if either check is unavailable. GitHub can create a referenced
-environment without protection rules, so referencing its name alone is not
-sufficient. Recheck the downloaded assets against the approved checksum
-manifest immediately before publishing.
-
-The normal [build.yml](../../.github/workflows/build.yml) continues calling the
-same platform workflows without release packaging. Add only the inputs needed
-for release packaging and Linux baselines; keep runner/tool installation and
-platform-specific commands in their respective workflows or packaging helpers.
-Keep product identity and release targets in `packaging/Product.cmake`, consumed
-by the plugin's CMake setup and packaging module. A small CMake script reads that
-configuration to emit the matrices and expected asset names for the prepare
-job. Derive bundle paths from JUCE and keep version mapping in the packaging
-module, not duplicated in workflow steps.
-
-Use read-only repository permissions for build jobs and grant `contents: write`
-only to jobs that create a tag or publish. Validate release inputs before using
-them; pass them as data rather than interpolating them into shell scripts.
-Artifact names include platform, architecture and baseline so parallel jobs
-cannot collide. Reusing the workflows in another repository also requires the
-corresponding packaging files and product configuration there; a reusable
-workflow alone does not supply those files.
-
-## 13.5 Validation and Implementation Order
-
-1. Add product inputs, deterministic bundle staging and version validation;
-   verify missing targets, configurations, invalid versions and staged contents.
-2. Add Windows NSIS, macOS productbuild and Linux DEB/RPM/ZIP packaging. Inspect
-   each package's paths, architecture, metadata, complete bundles and dependencies.
-3. Test clean install, reinstall, upgrade including RC-to-final, removal, data
-   preservation and another installed PHU product. Test Windows runtime
-   missing/current/newer, refusal, failure and reboot; test legacy detection,
-   confirmation and uncertain ownership. Exercise Linux dependency resolution.
-4. On each supported OS/architecture and Linux distro baseline, validate the
-   **installed** plugin with a suitable scanner/host; check both macOS formats
-   and VST3 subfolder discovery in representative DAWs. Record manual checks
-   where CI cannot run a DAW; do not treat a successful build as an install test.
-5. Wire release jobs and guide updates; make missing assets and failed required
-   checks block publication. Run Windows installer tests in disposable machines;
-   never test destructive install/uninstall operations against a shared host.
-
-References: [JUCE CMake API](../../JUCE/docs/CMake%20API.md),
+References: [WiX Burn](https://docs.firegiant.com/wix/tools/burn/),
+[WiX maintenance fee](https://docs.firegiant.com/wix/osmf/),
+[MSI version limits](https://learn.microsoft.com/en-us/windows/win32/msi/productversion),
 [CPack](https://cmake.org/cmake/help/latest/module/CPack.html),
-[Microsoft runtime deployment](https://learn.microsoft.com/en-us/cpp/windows/redistributing-visual-cpp-files),
-[VST3 locations](https://steinbergmedia.github.io/vst3_dev_portal/pages/Technical+Documentation/Locations+Format/Plugin+Locations.html).
+[Microsoft runtime deployment](https://learn.microsoft.com/en-us/cpp/windows/redistributing-visual-cpp-files).

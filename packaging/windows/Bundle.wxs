@@ -1,0 +1,41 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <Bundle Name="$(Product) $(Tag)" Manufacturer="$(Publisher)" Version="$(Version)"
+          UpgradeCode="63b6c97a-e726-4c75-bea7-98b60664e09d">
+    <BootstrapperApplication>
+      <bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense"
+          ThemeFile="$(Theme)" LicenseUrl="" SuppressOptionsUI="yes" />
+    </BootstrapperApplication>
+    <Variable Name="AllowRuntime" Type="numeric" Value="0" />
+    <Variable Name="AllowRepairRuntime" Type="numeric" Value="0" />
+    <Variable Name="RuntimeInstalled" Type="numeric" Value="0" />
+    <Variable Name="RuntimeMajor" Type="numeric" Value="0" />
+    <Variable Name="RuntimeMinor" Type="numeric" Value="0" />
+    <Variable Name="RuntimeBuild" Type="numeric" Value="0" />
+    <Variable Name="RuntimeRevision" Type="numeric" Value="0" />
+    <util:RegistrySearch Variable="RuntimeInstalled" Root="HKLM"
+        Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+        Value="Installed" Bitness="always32" />
+    <util:RegistrySearch Variable="RuntimeMajor" Root="HKLM"
+        Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+        Value="Major" Bitness="always32" />
+    <util:RegistrySearch Variable="RuntimeMinor" Root="HKLM"
+        Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+        Value="Minor" Bitness="always32" />
+    <util:RegistrySearch Variable="RuntimeBuild" Root="HKLM"
+        Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+        Value="Bld" Bitness="always32" />
+    <util:RegistrySearch Variable="RuntimeRevision" Root="HKLM"
+        Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+        Value="Rbld" Bitness="always32" />
+    <Chain>
+      <ExePackage Id="VCRedist" SourceFile="$(Redist)" PerMachine="yes" Permanent="yes"
+          DetectCondition="RuntimeInstalled = 1 AND RuntimeMajor = 14 AND (RuntimeMinor &gt; $(RuntimeMinor) OR (RuntimeMinor = $(RuntimeMinor) AND (RuntimeBuild &gt; $(RuntimeBuild) OR (RuntimeBuild = $(RuntimeBuild) AND RuntimeRevision &gt;= $(RuntimeRevision)))))"
+          InstallCondition="AllowRuntime = 1 OR AllowRepairRuntime = 1" InstallArguments="/install /quiet /norestart">
+        <ExitCode Value="3010" Behavior="errorScheduleReboot" />
+      </ExePackage>
+      <MsiPackage SourceFile="$(Msi)" />
+    </Chain>
+  </Bundle>
+</Wix>

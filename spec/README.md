@@ -30,7 +30,7 @@ This document has been split into focused sub-documents for better token efficie
 | §22 | [Lane State Management](20-lane-state-management.md) | LaneState as canonical representation, serialization, copy semantics |
 | §23 | [Command and Undo Infrastructure](21-command-undo-infrastructure.md) | Command pattern, undo manager, reusability |
 | §24 | [Lane Commands](22-lane-commands.md) | Step manipulation, pattern generation, configuration commands |
-| §25 | [Installers](23-installers.md) | Cross-platform packaging, dependencies, installation and validation |
+| §25 | [Installers](23-installers.md) | Cross-platform packaging, dependencies, installation and releases |
 
 ---
 

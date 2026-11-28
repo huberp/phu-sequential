@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Theme xmlns="http://wixtoolset.org/schemas/v4/thmutil">
+  <Font Id="0" Height="-12" Weight="500" Foreground="windowtext" Background="window">Segoe UI</Font>
+  <Font Id="1" Height="-22" Weight="500" Foreground="windowtext">Segoe UI</Font>
+  <Window Width="500" Height="300" HexStyle="100a0000" FontId="0" Caption="[WixBundleName] Setup">
+    <Label X="15" Y="15" Width="-15" Height="35" FontId="1" Visible="yes">[WixBundleName]</Label>
+    <Page Name="Loading">
+      <Label X="15" Y="65" Width="-15" Height="25" FontId="0">Checking installation...</Label>
+    </Page>
+    <Page Name="Install">
+      <Label X="15" Y="65" Width="-15" Height="25" FontId="0">Ready to install:</Label>
+      <Label X="15" Y="95" Width="-15" Height="25" FontId="0" DisablePrefix="yes">VST3 plugin: @PRODUCT@</Label>
+      <Label X="15" Y="120" Width="-15" Height="35" FontId="0" DisablePrefix="yes">Location: Common Files\VST3\PHUplugins\@PRODUCT@.vst3</Label>
+      <Label X="15" Y="160" Width="-15" Height="25" FontId="0" VisibleCondition="RuntimeInstalled = 1 AND RuntimeMajor = 14 AND (RuntimeMinor &gt; @runtime_minor@ OR (RuntimeMinor = @runtime_minor@ AND (RuntimeBuild &gt; @runtime_build@ OR (RuntimeBuild = @runtime_build@ AND RuntimeRevision &gt;= @runtime_revision@))))">Microsoft Visual C++ runtime: already installed.</Label>
+      <Label X="15" Y="160" Width="-15" Height="25" FontId="0" VisibleCondition="NOT (RuntimeInstalled = 1 AND RuntimeMajor = 14 AND (RuntimeMinor &gt; @runtime_minor@ OR (RuntimeMinor = @runtime_minor@ AND (RuntimeBuild &gt; @runtime_build@ OR (RuntimeBuild = @runtime_build@ AND RuntimeRevision &gt;= @runtime_revision@)))))">Microsoft Visual C++ runtime: installation required.</Label>
+      <Checkbox Name="AllowRuntime" X="15" Y="190" Width="-15" Height="35" FontId="0" TabStop="yes" VisibleCondition="NOT (RuntimeInstalled = 1 AND RuntimeMajor = 14 AND (RuntimeMinor &gt; @runtime_minor@ OR (RuntimeMinor = @runtime_minor@ AND (RuntimeBuild &gt; @runtime_build@ OR (RuntimeBuild = @runtime_build@ AND RuntimeRevision &gt;= @runtime_revision@)))))">I agree to install the required runtime.</Checkbox>
+      <Button Name="InstallButton" X="-110" Y="-15" Width="85" Height="25" FontId="0" TabStop="yes" EnableCondition="AllowRuntime = 1 OR (RuntimeInstalled = 1 AND RuntimeMajor = 14 AND (RuntimeMinor &gt; @runtime_minor@ OR (RuntimeMinor = @runtime_minor@ AND (RuntimeBuild &gt; @runtime_build@ OR (RuntimeBuild = @runtime_build@ AND RuntimeRevision &gt;= @runtime_revision@)))))">Install</Button>
+      <Button Name="InstallCancelButton" X="-15" Y="-15" Width="85" Height="25" FontId="0" TabStop="yes">
+        <Text>Cancel</Text><CloseWindowAction />
+      </Button>
+    </Page>
+    <Page Name="Progress">
+      <Label X="15" Y="65" Width="-15" Height="25" FontId="0">Installing...</Label>
+      <Label Name="OverallProgressPackageText" X="15" Y="100" Width="-15" Height="25" FontId="0" />
+      <Progressbar Name="OverallCalculatedProgressbar" X="15" Y="135" Width="-15" Height="15" />
+      <Button Name="ProgressCancelButton" X="-15" Y="-15" Width="85" Height="25" FontId="0">Cancel</Button>
+    </Page>
+    <Page Name="Modify">
+      <Label X="15" Y="65" Width="-15" Height="25" FontId="0">Repair or remove the plugin.</Label>
+      <Checkbox Name="AllowRepairRuntime" X="15" Y="105" Width="-15" Height="35" FontId="0" TabStop="yes">I agree to install the required runtime if needed.</Checkbox>
+      <Button Name="RepairButton" X="-205" Y="-15" Width="85" Height="25" FontId="0">Repair</Button>
+      <Button Name="UninstallButton" X="-110" Y="-15" Width="85" Height="25" FontId="0">Uninstall</Button>
+      <Button Name="ModifyCancelButton" X="-15" Y="-15" Width="85" Height="25" FontId="0">
+        <Text>Cancel</Text><CloseWindowAction />
+      </Button>
+    </Page>
+    <Page Name="Success">
+      <Label X="15" Y="65" Width="-15" Height="30" FontId="0">Setup completed successfully.</Label>
+      <Label X="15" Y="100" Width="-15" Height="55" FontId="0" VisibleCondition="WixBundleAction = 6 AND RuntimeInstalled = 1 AND RuntimeMajor = 14 AND (RuntimeMinor &gt; @runtime_minor@ OR (RuntimeMinor = @runtime_minor@ AND (RuntimeBuild &gt; @runtime_build@ OR (RuntimeBuild = @runtime_build@ AND RuntimeRevision &gt;= @runtime_revision@))))">Visual C++ runtime: already installed. Rescan plugins in your host.</Label>
+      <Label X="15" Y="100" Width="-15" Height="55" FontId="0" VisibleCondition="WixBundleAction = 6 AND NOT (RuntimeInstalled = 1 AND RuntimeMajor = 14 AND (RuntimeMinor &gt; @runtime_minor@ OR (RuntimeMinor = @runtime_minor@ AND (RuntimeBuild &gt; @runtime_build@ OR (RuntimeBuild = @runtime_build@ AND RuntimeRevision &gt;= @runtime_revision@)))))">Visual C++ runtime: installed. Rescan plugins in your host.</Label>
+      <Label X="15" Y="160" Width="-15" Height="35" FontId="0" VisibleCondition="WixStdBARestartRequired">A restart is required.</Label>
+      <Button Name="SuccessCloseButton" X="-15" Y="-15" Width="85" Height="25" FontId="0">
+        <Text>Close</Text><CloseWindowAction />
+      </Button>
+    </Page>
+    <Page Name="Failure">
+      <Label X="15" Y="65" Width="-15" Height="50" FontId="0">Setup did not complete. Check the log for details.</Label>
+      <Hypertext Name="FailureLogFileLink" X="15" Y="125" Width="-15" Height="35" FontId="0">Open the &lt;a href="#"&gt;setup log&lt;/a&gt;.</Hypertext>
+      <Hypertext Name="FailureMessageText" X="15" Y="165" Width="-15" Height="30" FontId="0" />
+      <Label X="15" Y="200" Width="-15" Height="25" FontId="0" VisibleCondition="WixStdBARestartRequired">Restart Windows before trying setup again.</Label>
+      <Button Name="FailureCloseButton" X="-15" Y="-15" Width="85" Height="25" FontId="0">
+        <Text>Close</Text><CloseWindowAction />
+      </Button>
+    </Page>
+  </Window>
+</Theme>
